@@ -32,7 +32,17 @@ export function TodoNode({
   const paddingLeft = 14 + depth * 22
 
   const onKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && event.shiftKey) {
+      event.preventDefault()
+      const childNode = makeNode()
+      setTree((prev) =>
+        upd(prev, node.id, (target) => {
+          target.children.push(childNode)
+          target.collapsed = false
+        }),
+      )
+      setEditingId(childNode.id)
+    } else if (event.key === 'Enter') {
       event.preventDefault()
       const nextNode = makeNode()
       setTree((prev) => addSib(prev, node.id, nextNode))
