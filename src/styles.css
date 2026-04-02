@@ -496,6 +496,10 @@ body,
   color: inherit;
   cursor: pointer;
   min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .suggestion-card:hover {
@@ -543,12 +547,84 @@ body,
 }
 
 .suggestion-path {
-  margin-top: 0.5rem;
   font-size: 0.6875rem;
   color: #948d86;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.suggestion-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.suggestion-hide-btn,
+.suggestion-hide-option,
+.suggestion-hide-apply {
+  border: 0.0625rem solid #302c29;
+  background: #171615;
+  color: #d7cfc6;
+  border-radius: 0.45rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.675rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
+}
+
+.suggestion-hide-btn:hover,
+.suggestion-hide-option:hover,
+.suggestion-hide-apply:hover {
+  border-color: #cf7d3c;
+  color: #e8c547;
+}
+
+.suggestion-hide-btn {
+  padding: 0.28rem 0.5rem;
+}
+
+.suggestion-hide-menu {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  border-radius: 0.6rem;
+  border: 0.0625rem solid #2a2623;
+  background: rgba(15, 14, 13, 0.94);
+}
+
+.suggestion-hide-row {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.suggestion-hide-day-row {
+  align-items: center;
+}
+
+.suggestion-hide-option,
+.suggestion-hide-apply {
+  padding: 0.28rem 0.48rem;
+}
+
+.suggestion-hide-input {
+  flex: 1;
+  min-width: 7.5rem;
+  border: 0.0625rem solid #2f2b28;
+  background: #111010;
+  color: #e6dfd6;
+  border-radius: 0.45rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.675rem;
+  padding: 0.25rem 0.4rem;
 }
 
 @media (max-width: 900px) {

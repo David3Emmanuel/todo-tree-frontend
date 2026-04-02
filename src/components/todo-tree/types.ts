@@ -36,4 +36,5 @@ export type PersistedState = {
   tree: TreeNode[]
   zoom: Breadcrumb[]
   view: ViewMode
+  suggestionHides: Record<string, number>
 }

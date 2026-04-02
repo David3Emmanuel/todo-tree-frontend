@@ -21,18 +21,42 @@ function normalizeTree(nodes: TreeNode[]): TreeNode[] {
   })
 }
 
+function normalizeSuggestionHides(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+
+  const result: Record<string, number> = {}
+  for (const [key, rawUntil] of Object.entries(
+    value as Record<string, unknown>,
+  )) {
+    const until = Number(rawUntil)
+    if (Number.isFinite(until) && until > 0) {
+      result[key] = until
+    }
+  }
+
+  return result
+}
+
+function emptyPersistedState(): PersistedState {
+  return { tree: INIT, zoom: [], view: 'tree', suggestionHides: {} }
+}
+
 export function loadPersistedState(): PersistedState {
   if (typeof window === 'undefined') {
-    return { tree: INIT, zoom: [], view: 'tree' }
+    return emptyPersistedState()
   }
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      return { tree: INIT, zoom: [], view: 'tree' }
+      return emptyPersistedState()
     }
 
-    const parsed = JSON.parse(raw) as Partial<PersistedState>
+    const parsed = JSON.parse(raw) as Partial<PersistedState> & {
+      suggestionHides?: unknown
+    }
     return {
       tree:
         Array.isArray(parsed.tree) && parsed.tree.length
@@ -40,9 +64,10 @@ export function loadPersistedState(): PersistedState {
           : INIT,
       zoom: Array.isArray(parsed.zoom) ? (parsed.zoom as Breadcrumb[]) : [],
       view: parsed.view === 'harvest' ? 'harvest' : 'tree',
+      suggestionHides: normalizeSuggestionHides(parsed.suggestionHides),
     }
   } catch {
-    return { tree: INIT, zoom: [], view: 'tree' }
+    return emptyPersistedState()
   }
 }
 

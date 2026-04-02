@@ -52,12 +52,51 @@ function toBreadcrumbPath(zoom: Breadcrumb[]): string {
   return `/${zoom.map((crumb) => encodeURIComponent(crumb.id)).join('/')}`
 }
 
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function dateInputToMs(value: string): number | null {
+  if (!value) {
+    return null
+  }
+
+  const parsed = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) {
+    return null
+  }
+
+  return parsed.getTime()
+}
+
+function pruneSuggestionHides(
+  hides: Record<string, number>,
+  now: number,
+): Record<string, number> {
+  const result: Record<string, number> = {}
+  for (const [key, until] of Object.entries(hides)) {
+    if (until > now) {
+      result[key] = until
+    }
+  }
+  return result
+}
+
 export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const [isReady, setIsReady] = useState(false)
   const [tree, setTree] = useState<TreeNode[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [zoom, setZoom] = useState<Breadcrumb[]>([])
   const [view, setView] = useState<ViewMode>('tree')
+  const [suggestionHides, setSuggestionHides] = useState<
+    Record<string, number>
+  >({})
+  const [hideMenuId, setHideMenuId] = useState<string | null>(null)
+  const [hideUntilDate, setHideUntilDate] = useState('')
+  const [suggestionTick, setSuggestionTick] = useState(() => Date.now())
   const zoomSyncSourceRef = useRef<'path' | 'ui' | null>(null)
   const pendingEditingIdRef = useRef<string | null>(null)
   const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
@@ -81,6 +120,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     setTree(persisted.tree)
     setZoom(persisted.zoom)
     setView(persisted.view)
+    setSuggestionHides(persisted.suggestionHides ?? {})
     setIsReady(true)
   }, [])
 
@@ -106,13 +146,38 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     )
   }, [isReady, location.pathname, zoomPath, resolvedZoomFromPath])
 
+  const activeSuggestionHides = useMemo(
+    () => pruneSuggestionHides(suggestionHides, suggestionTick),
+    [suggestionHides, suggestionTick],
+  )
+
   useEffect(() => {
     if (!isReady) {
       return
     }
 
-    savePersistedState({ tree, zoom, view })
-  }, [isReady, tree, zoom, view])
+    savePersistedState({
+      tree,
+      zoom,
+      view,
+      suggestionHides: activeSuggestionHides,
+    })
+  }, [isReady, tree, zoom, view, activeSuggestionHides])
+
+  useEffect(() => {
+    const activeExpiryTimes = Object.values(activeSuggestionHides)
+    if (!activeExpiryTimes.length) {
+      return
+    }
+
+    const nextExpiry = Math.min(...activeExpiryTimes)
+    const delay = Math.max(25, nextExpiry - Date.now() + 25)
+    const timeoutId = window.setTimeout(() => {
+      setSuggestionTick(Date.now())
+    }, delay)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [activeSuggestionHides])
 
   useEffect(() => {
     if (!pendingEditingIdRef.current) {
@@ -147,10 +212,15 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     }
   }, [isReady, zoom, resolvedZoomFromPath, location.pathname, navigate])
 
-  const suggestions = useMemo(
-    () => getNextActionSuggestions(tree, suggestionSeedRef.current, 3),
-    [tree],
-  )
+  const suggestions = useMemo(() => {
+    const now = suggestionTick
+    return getNextActionSuggestions(tree, suggestionSeedRef.current, 3).filter(
+      (item) => {
+        const hiddenUntil = activeSuggestionHides[item.node.id]
+        return hiddenUntil === undefined || hiddenUntil <= now
+      },
+    )
+  }, [activeSuggestionHides, suggestionTick, tree])
 
   if (!isReady) {
     return (
@@ -200,8 +270,35 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   }
 
   const focusSuggestion = (path: Breadcrumb[], nodeId: string) => {
+    setHideMenuId(null)
     setZoomFromUi(path.slice(0, -1))
     setEditingId(nodeId)
+  }
+
+  const hideSuggestion = (nodeId: string, until: number) => {
+    setSuggestionHides((prev) => ({
+      ...prev,
+      [nodeId]: until,
+    }))
+    setHideMenuId(null)
+  }
+
+  const hideSuggestionForDuration = (nodeId: string, durationMs: number) => {
+    hideSuggestion(nodeId, Date.now() + durationMs)
+  }
+
+  const hideSuggestionUntilDate = (nodeId: string) => {
+    const until = dateInputToMs(hideUntilDate)
+    if (!until) {
+      return
+    }
+
+    hideSuggestion(nodeId, until)
+  }
+
+  const openHideMenu = (nodeId: string) => {
+    setHideMenuId(nodeId)
+    setHideUntilDate(formatDateInputValue(new Date(Date.now() + 86400000)))
   }
 
   const ctx: CtxValue = {
@@ -282,13 +379,22 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                 const pathLabel = parentPath
                   .map((crumb) => crumb.text || 'Untitled')
                   .join(' › ')
+                const isHideMenuOpen = hideMenuId === item.node.id
 
                 return (
-                  <button
+                  <article
                     key={item.node.id}
                     className="suggestion-card feature-card"
                     style={{ animationDelay: `${index * 80}ms` }}
                     onClick={() => focusSuggestion(item.path, item.node.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        focusSuggestion(item.path, item.node.id)
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                     title="Open this suggestion"
                   >
                     <div className="suggestion-top">
@@ -303,7 +409,87 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                     ) : (
                       <div className="suggestion-path">Root level</div>
                     )}
-                  </button>
+                    <div className="suggestion-actions">
+                      <button
+                        className="suggestion-hide-btn"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          if (isHideMenuOpen) {
+                            setHideMenuId(null)
+                          } else {
+                            openHideMenu(item.node.id)
+                          }
+                        }}
+                        title="Hide this suggestion temporarily"
+                      >
+                        Hide
+                      </button>
+                      {isHideMenuOpen && (
+                        <div
+                          className="suggestion-hide-menu"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <div className="suggestion-hide-row">
+                            <button
+                              className="suggestion-hide-option"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                hideSuggestionForDuration(
+                                  item.node.id,
+                                  60 * 60 * 1000,
+                                )
+                              }}
+                            >
+                              1h
+                            </button>
+                            <button
+                              className="suggestion-hide-option"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                hideSuggestionForDuration(
+                                  item.node.id,
+                                  24 * 60 * 60 * 1000,
+                                )
+                              }}
+                            >
+                              1d
+                            </button>
+                            <button
+                              className="suggestion-hide-option"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                hideSuggestionForDuration(
+                                  item.node.id,
+                                  7 * 24 * 60 * 60 * 1000,
+                                )
+                              }}
+                            >
+                              1w
+                            </button>
+                          </div>
+                          <div className="suggestion-hide-row suggestion-hide-day-row">
+                            <input
+                              className="suggestion-hide-input"
+                              type="date"
+                              value={hideUntilDate}
+                              onChange={(event) =>
+                                setHideUntilDate(event.target.value)
+                              }
+                            />
+                            <button
+                              className="suggestion-hide-apply"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                hideSuggestionUntilDate(item.node.id)
+                              }}
+                            >
+                              Hide until day
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </article>
                 )
               })}
             </div>
