@@ -2,21 +2,21 @@ import type { TreeNode } from './types'
 
 export const INIT: TreeNode[] = [
   {
-    id: 'w1',
+    id: 'work',
     text: 'Work',
     completed: false,
     collapsed: false,
     starred: false,
     children: [
       {
-        id: 'w2',
+        id: 'work-q2-marketing-launch',
         text: 'Q2 Marketing Launch',
         completed: false,
         collapsed: false,
         starred: false,
         children: [
           {
-            id: 'w3',
+            id: 'work-q2-draft-email-campaign',
             text: 'Draft email campaign',
             completed: true,
             collapsed: false,
@@ -24,7 +24,7 @@ export const INIT: TreeNode[] = [
             children: [],
           },
           {
-            id: 'w4',
+            id: 'work-q2-design-landing-page',
             text: 'Design landing page',
             completed: false,
             collapsed: false,
@@ -32,7 +32,7 @@ export const INIT: TreeNode[] = [
             children: [],
           },
           {
-            id: 'w5',
+            id: 'work-q2-set-up-ab-testing',
             text: 'Set up A/B testing',
             completed: false,
             collapsed: false,
@@ -40,7 +40,7 @@ export const INIT: TreeNode[] = [
             children: [],
           },
           {
-            id: 'w6',
+            id: 'work-q2-schedule-social-posts',
             text: 'Schedule social posts',
             completed: false,
             collapsed: false,
@@ -50,14 +50,14 @@ export const INIT: TreeNode[] = [
         ],
       },
       {
-        id: 'w7',
+        id: 'work-team-sync-prep',
         text: 'Team sync prep',
         completed: false,
         collapsed: false,
         starred: false,
         children: [
           {
-            id: 'w8',
+            id: 'work-team-sync-compile-weekly-metrics',
             text: 'Compile weekly metrics',
             completed: true,
             collapsed: false,
@@ -65,7 +65,7 @@ export const INIT: TreeNode[] = [
             children: [],
           },
           {
-            id: 'w9',
+            id: 'work-team-sync-update-roadmap-slides',
             text: 'Update roadmap slides',
             completed: false,
             collapsed: false,
@@ -77,14 +77,14 @@ export const INIT: TreeNode[] = [
     ],
   },
   {
-    id: 'p1',
+    id: 'personal',
     text: 'Personal',
     completed: false,
     collapsed: false,
     starred: false,
     children: [
       {
-        id: 'p2',
+        id: 'personal-book-dentist-appointment',
         text: 'Book dentist appointment',
         completed: false,
         collapsed: false,
@@ -92,7 +92,7 @@ export const INIT: TreeNode[] = [
         children: [],
       },
       {
-        id: 'p3',
+        id: 'personal-renew-gym-membership',
         text: 'Renew gym membership',
         completed: false,
         collapsed: false,
@@ -100,14 +100,14 @@ export const INIT: TreeNode[] = [
         children: [],
       },
       {
-        id: 'p4',
+        id: 'personal-weekend-trip-planning',
         text: 'Weekend trip planning',
         completed: false,
         collapsed: false,
         starred: false,
         children: [
           {
-            id: 'p5',
+            id: 'personal-weekend-trip-check-hotel-prices',
             text: 'Check hotel prices',
             completed: true,
             collapsed: false,
@@ -115,7 +115,7 @@ export const INIT: TreeNode[] = [
             children: [],
           },
           {
-            id: 'p6',
+            id: 'personal-weekend-trip-book-train-tickets',
             text: 'Book train tickets',
             completed: false,
             collapsed: false,
@@ -123,7 +123,7 @@ export const INIT: TreeNode[] = [
             children: [],
           },
           {
-            id: 'p7',
+            id: 'personal-weekend-trip-pack-bag',
             text: 'Pack bag',
             completed: false,
             collapsed: false,
@@ -135,14 +135,14 @@ export const INIT: TreeNode[] = [
     ],
   },
   {
-    id: 'i1',
+    id: 'ideas',
     text: 'Ideas',
     completed: false,
     collapsed: false,
     starred: false,
     children: [
       {
-        id: 'i2',
+        id: 'ideas-build-a-todo-tree-app',
         text: 'Build a To-Do Tree app',
         completed: false,
         collapsed: false,
@@ -150,7 +150,7 @@ export const INIT: TreeNode[] = [
         children: [],
       },
       {
-        id: 'i3',
+        id: 'ideas-write-a-short-story',
         text: 'Write a short story',
         completed: false,
         collapsed: false,

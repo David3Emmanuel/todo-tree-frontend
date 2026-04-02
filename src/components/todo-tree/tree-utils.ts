@@ -1,11 +1,29 @@
 import type { DropPosition, StarredItem, TreeNode } from './types'
 
-export const uid = () => Math.random().toString(36).slice(2, 9)
+let idCounter = 0
+
+function toSlug(value: string): string {
+  const normalized = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return normalized || 'task'
+}
+
+export const uid = (label = 'task') => {
+  idCounter += 1
+  const slug = toSlug(label)
+  const timePart = Date.now().toString(36).slice(-6)
+  const counterPart = idCounter.toString(36).padStart(3, '0')
+  return `${slug}-${timePart}-${counterPart}`
+}
 
 export const dc = <T>(obj: T): T => JSON.parse(JSON.stringify(obj)) as T
 
 export const makeNode = (): TreeNode => ({
-  id: uid(),
+  id: uid('task'),
   text: '',
   completed: false,
   collapsed: false,
