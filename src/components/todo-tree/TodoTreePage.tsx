@@ -51,6 +51,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const [zoom, setZoom] = useState<Breadcrumb[]>([])
   const [view, setView] = useState<ViewMode>('tree')
   const zoomSyncSourceRef = useRef<'path' | 'ui' | null>(null)
+  const pendingEditingIdRef = useRef<string | null>(null)
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -103,6 +104,16 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
 
     savePersistedState({ tree, zoom, view })
   }, [isReady, tree, zoom, view])
+
+  useEffect(() => {
+    if (!pendingEditingIdRef.current) {
+      return
+    }
+
+    const nextEditingId = pendingEditingIdRef.current
+    pendingEditingIdRef.current = null
+    setEditingId(nextEditingId)
+  }, [tree])
 
   useEffect(() => {
     if (!isReady) {
@@ -159,10 +170,9 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const starred = getAllStarred(tree)
 
   const addRoot = () => {
-    let createdId = ''
     setTree((prev) => {
       const node = makeNode(prev)
-      createdId = node.id
+      pendingEditingIdRef.current = node.id
 
       if (zoomedNode) {
         return upd(prev, zoomedNode.id, (target) => {
@@ -173,8 +183,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
 
       return [...prev, node]
     })
-
-    if (createdId) setEditingId(createdId)
   }
 
   const ctx: CtxValue = {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTodoCtx } from './todo-context'
 import type { DropPosition, TreeNode } from './types'
 import {
@@ -24,6 +24,17 @@ export function TodoNode({
 }) {
   const { tree, setTree, editingId, setEditingId, setZoom } = useTodoCtx()
   const [dropPos, setDropPos] = useState<DropPosition | null>(null)
+  const pendingEditingIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!pendingEditingIdRef.current) {
+      return
+    }
+
+    const nextEditingId = pendingEditingIdRef.current
+    pendingEditingIdRef.current = null
+    setEditingId(nextEditingId)
+  }, [setEditingId, tree])
 
   const findBreadcrumbPath = (
     nodes: TreeNode[],
@@ -77,26 +88,22 @@ export function TodoNode({
     if (event.key === 'Enter' && event.shiftKey) {
       event.preventDefault()
       const committedId = finalizeUid(node.id, node.text)
-      let createdId = ''
       setTree((prev) => {
         const childNode = makeNode(prev)
-        createdId = childNode.id
+        pendingEditingIdRef.current = childNode.id
         return upd(prev, committedId, (target) => {
           target.children.push(childNode)
           target.collapsed = false
         })
       })
-      if (createdId) setEditingId(createdId)
     } else if (event.key === 'Enter') {
       event.preventDefault()
       const committedId = finalizeUid(node.id, node.text)
-      let createdId = ''
       setTree((prev) => {
         const nextNode = makeNode(prev)
-        createdId = nextNode.id
+        pendingEditingIdRef.current = nextNode.id
         return addSib(prev, committedId, nextNode)
       })
-      if (createdId) setEditingId(createdId)
     } else if (event.key === 'Tab' && !event.shiftKey) {
       event.preventDefault()
       const committedId = finalizeUid(node.id, node.text)
