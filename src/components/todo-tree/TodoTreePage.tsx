@@ -296,6 +296,9 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
               <div className="shortcut">
                 <span className="key">*</span> pin to focus
               </div>
+              <div className="shortcut">
+                <span className="key">☑</span> toggle category
+              </div>
             </div>
           </>
         )}

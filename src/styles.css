@@ -578,6 +578,12 @@ body,
 .check.part {
   border-color: #cf7d3c;
 }
+.check.folder {
+  border-color: #5f5546;
+  color: #d7c6a4;
+  background: rgba(95, 85, 70, 0.14);
+  cursor: default;
+}
 
 .node-input {
   flex: 1;
@@ -607,6 +613,9 @@ body,
 .node-text.done {
   color: #928c86;
   text-decoration: line-through;
+}
+.node-text.folder {
+  color: #d9cbab;
 }
 .node-text .ph {
   color: #6f6963;
@@ -678,6 +687,15 @@ body,
 }
 .act.zoom:hover {
   color: #cf7d3c;
+}
+.act.mode {
+  color: #8f8a84;
+}
+.act.mode:hover {
+  color: #cbb27a;
+}
+.act.mode.folder {
+  color: #d7c6a4;
 }
 
 .drop-line {

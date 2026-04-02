@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react'
 export type TreeNode = {
   id: string
   text: string
+  kind?: 'task' | 'folder'
   completed: boolean
   collapsed: boolean
   starred: boolean

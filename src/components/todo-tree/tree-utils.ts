@@ -48,6 +48,7 @@ export const dc = <T>(obj: T): T => JSON.parse(JSON.stringify(obj)) as T
 export const makeNode = (tree: TreeNode[], label = 'task'): TreeNode => ({
   id: makeUniqueUid(tree, label),
   text: '',
+  kind: 'task',
   completed: false,
   collapsed: false,
   starred: false,
@@ -64,7 +65,9 @@ export function findNode(nodes: TreeNode[], id: string): TreeNode | null {
 }
 
 export function getLeaves(node: TreeNode): TreeNode[] {
-  if (!node.children.length) return [node]
+  if (!node.children.length) {
+    return node.kind === 'folder' ? [] : [node]
+  }
   return node.children.flatMap(getLeaves)
 }
 
@@ -74,6 +77,10 @@ export function getProgress(node: TreeNode): {
   isLeaf: boolean
 } {
   if (!node.children.length) {
+    if (node.kind === 'folder') {
+      return { done: 0, total: 0, isLeaf: true }
+    }
+
     return { done: node.completed ? 1 : 0, total: 1, isLeaf: true }
   }
 
@@ -133,7 +140,20 @@ function propagate(nodes: TreeNode[]): void {
   for (const node of nodes) {
     if (node.children.length) {
       propagate(node.children)
-      node.completed = node.children.every((child) => child.completed)
+
+      if (node.kind === 'folder') {
+        node.completed = false
+        continue
+      }
+
+      const leaves = getLeaves(node)
+      node.completed =
+        leaves.length > 0 && leaves.every((leaf) => leaf.completed)
+      continue
+    }
+
+    if (node.kind === 'folder') {
+      node.completed = false
     }
   }
 }
@@ -144,13 +164,19 @@ export function toggleTree(tree: TreeNode[], id: string): TreeNode[] {
   function walk(nodes: TreeNode[]): boolean {
     for (const node of nodes) {
       if (node.id === id) {
+        if (node.kind === 'folder') {
+          return true
+        }
+
         if (!node.children.length) {
           node.completed = !node.completed
         } else {
           const allDone = getLeaves(node).every((leaf) => leaf.completed)
           const setAll = (target: TreeNode, value: boolean): void => {
             if (!target.children.length) {
-              target.completed = value
+              if (target.kind !== 'folder') {
+                target.completed = value
+              }
             } else {
               target.children.forEach((child) => setAll(child, value))
             }

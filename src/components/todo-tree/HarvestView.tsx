@@ -23,24 +23,30 @@ export function HarvestView() {
         Starred tasks harvested from across your tree
       </div>
       {items.map((item) => {
+        const isFolder = item.kind === 'folder'
         const { done, total } = getProgress(item)
-        const allDone = total > 0 && done === total
+        const allDone = !isFolder && total > 0 && done === total
         return (
           <div key={item.id} className="h-item">
             <button
-              className={`check${allDone ? ' done' : ''}`}
+              className={`check${isFolder ? ' folder' : ''}${allDone ? ' done' : ''}`}
               style={{ flexShrink: 0 }}
-              onClick={() => setTree((prev) => toggleTree(prev, item.id))}
+              onClick={() =>
+                !isFolder && setTree((prev) => toggleTree(prev, item.id))
+              }
+              disabled={isFolder}
+              title={isFolder ? 'Category (not completable)' : undefined}
             >
-              {allDone && '✓'}
+              {isFolder ? '∞' : allDone && '✓'}
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
                   fontFamily: "'Courier Prime', monospace",
                   fontSize: 14,
-                  color: allDone ? '#928c86' : '#e6dfd6',
-                  textDecoration: allDone ? 'line-through' : 'none',
+                  color: isFolder ? '#d9cbab' : allDone ? '#928c86' : '#e6dfd6',
+                  textDecoration:
+                    !isFolder && allDone ? 'line-through' : 'none',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',

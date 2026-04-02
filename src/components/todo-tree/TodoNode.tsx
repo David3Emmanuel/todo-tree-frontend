@@ -57,9 +57,10 @@ export function TodoNode({
   }
 
   const hasKids = node.children.length > 0
+  const isFolder = node.kind === 'folder'
   const { done, total, isLeaf } = getProgress(node)
-  const allDone = total > 0 && done === total
-  const someDone = !allDone && done > 0
+  const allDone = !isFolder && total > 0 && done === total
+  const someDone = !isFolder && !allDone && done > 0
   const isEditing = editingId === node.id
   const paddingLeft = 14 + depth * 22
 
@@ -224,19 +225,24 @@ export function TodoNode({
         </button>
 
         <button
-          className={`check${allDone ? ' done' : someDone ? ' part' : ''}`}
-          onClick={() => setTree((prev) => toggleTree(prev, node.id))}
+          className={`check${isFolder ? ' folder' : ''}${allDone ? ' done' : someDone ? ' part' : ''}`}
+          onClick={() =>
+            !isFolder && setTree((prev) => toggleTree(prev, node.id))
+          }
+          disabled={isFolder}
           title={
-            hasKids
-              ? allDone
-                ? 'Uncheck all'
-                : 'Check all'
-              : node.completed
-                ? 'Uncheck'
-                : 'Check'
+            isFolder
+              ? 'Category (not completable)'
+              : hasKids
+                ? allDone
+                  ? 'Uncheck all'
+                  : 'Check all'
+                : node.completed
+                  ? 'Uncheck'
+                  : 'Check'
           }
         >
-          {allDone ? '✓' : someDone ? '-' : ''}
+          {isFolder ? '∞' : allDone ? '✓' : someDone ? '-' : ''}
         </button>
 
         {isEditing ? (
@@ -276,7 +282,7 @@ export function TodoNode({
           />
         ) : (
           <span
-            className={`node-text${allDone ? ' done' : ''}`}
+            className={`node-text${isFolder ? ' folder' : ''}${allDone ? ' done' : ''}`}
             onClick={() => setEditingId(node.id)}
             title="Click to edit"
           >
@@ -308,6 +314,23 @@ export function TodoNode({
         )}
 
         <span className="actions">
+          <button
+            className={`act mode${isFolder ? ' folder' : ''}`}
+            title={isFolder ? 'Convert to task' : 'Convert to category'}
+            onClick={() =>
+              setTree((prev) =>
+                upd(prev, node.id, (target) => {
+                  const nextKind = target.kind === 'folder' ? 'task' : 'folder'
+                  target.kind = nextKind
+                  if (nextKind === 'folder') {
+                    target.completed = false
+                  }
+                }),
+              )
+            }
+          >
+            {isFolder ? '📁' : '☑'}
+          </button>
           <button
             className={`act${node.starred ? ' starred' : ''}`}
             title={node.starred ? 'Unpin from Focus' : 'Pin to Focus'}
