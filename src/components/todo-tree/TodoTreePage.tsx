@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { HarvestView } from './HarvestView'
 import { loadPersistedState, savePersistedState } from './persistence'
@@ -50,10 +50,21 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [zoom, setZoom] = useState<Breadcrumb[]>([])
   const [view, setView] = useState<ViewMode>('tree')
+  const zoomSyncSourceRef = useRef<'path' | 'ui' | null>(null)
 
   const navigate = useNavigate()
   const location = useLocation()
   const pathKey = useMemo(() => pathSegments.join('/'), [pathSegments])
+  const resolvedZoomFromPath = useMemo(
+    () => resolveZoomFromSegments(tree, pathSegments),
+    [tree, pathKey, pathSegments],
+  )
+  const zoomPath = useMemo(() => toBreadcrumbPath(zoom), [zoom])
+
+  const setZoomFromUi: typeof setZoom = (value) => {
+    zoomSyncSourceRef.current = 'ui'
+    setZoom(value)
+  }
 
   useEffect(() => {
     const persisted = loadPersistedState()
@@ -68,9 +79,22 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
       return
     }
 
-    const nextZoom = resolveZoomFromSegments(tree, pathSegments)
-    setZoom((prev) => (isSameZoom(prev, nextZoom) ? prev : nextZoom))
-  }, [isReady, pathKey, tree, pathSegments])
+    if (location.pathname === zoomPath) {
+      if (zoomSyncSourceRef.current === 'ui') {
+        zoomSyncSourceRef.current = null
+      }
+      return
+    }
+
+    if (zoomSyncSourceRef.current === 'ui') {
+      return
+    }
+
+    zoomSyncSourceRef.current = 'path'
+    setZoom((prev) =>
+      isSameZoom(prev, resolvedZoomFromPath) ? prev : resolvedZoomFromPath,
+    )
+  }, [isReady, location.pathname, zoomPath, resolvedZoomFromPath])
 
   useEffect(() => {
     if (!isReady) {
@@ -85,11 +109,23 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
       return
     }
 
+    if (
+      zoomSyncSourceRef.current === 'path' &&
+      !isSameZoom(zoom, resolvedZoomFromPath)
+    ) {
+      return
+    }
+
     const nextPath = toBreadcrumbPath(zoom)
     if (location.pathname !== nextPath) {
       navigate({ to: nextPath, replace: true })
+      return
     }
-  }, [isReady, zoom, location.pathname, navigate])
+
+    if (zoomSyncSourceRef.current === 'path') {
+      zoomSyncSourceRef.current = null
+    }
+  }, [isReady, zoom, resolvedZoomFromPath, location.pathname, navigate])
 
   if (!isReady) {
     return (
@@ -147,7 +183,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     editingId,
     setEditingId,
     zoom,
-    setZoom,
+    setZoom: setZoomFromUi,
   }
 
   return (
@@ -184,7 +220,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
 
         {view === 'tree' && zoom.length > 0 && (
           <nav className="breadcrumbs">
-            <button className="crumb" onClick={() => setZoom([])}>
+            <button className="crumb" onClick={() => setZoomFromUi([])}>
               Root
             </button>
             {zoom.map((crumb, index) => (
@@ -195,7 +231,9 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                 <span className="sep">›</span>
                 <button
                   className={`crumb${index === zoom.length - 1 ? ' cur' : ''}`}
-                  onClick={() => setZoom((prev) => prev.slice(0, index + 1))}
+                  onClick={() =>
+                    setZoomFromUi((prev) => prev.slice(0, index + 1))
+                  }
                 >
                   {crumb.text || 'Untitled'}
                 </button>
