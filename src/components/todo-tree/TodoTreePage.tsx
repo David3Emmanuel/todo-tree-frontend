@@ -8,6 +8,7 @@ import type { Breadcrumb, CtxValue, TreeNode, ViewMode } from './types'
 import {
   findNode,
   getAllStarred,
+  getNextActionSuggestions,
   makeNode,
   upd,
   collapseAll,
@@ -59,6 +60,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const [view, setView] = useState<ViewMode>('tree')
   const zoomSyncSourceRef = useRef<'path' | 'ui' | null>(null)
   const pendingEditingIdRef = useRef<string | null>(null)
+  const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -145,6 +147,11 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     }
   }, [isReady, zoom, resolvedZoomFromPath, location.pathname, navigate])
 
+  const suggestions = useMemo(
+    () => getNextActionSuggestions(tree, suggestionSeedRef.current, 3),
+    [tree],
+  )
+
   if (!isReady) {
     return (
       <div className="app">
@@ -190,6 +197,11 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
 
       return [...prev, node]
     })
+  }
+
+  const focusSuggestion = (path: Breadcrumb[], nodeId: string) => {
+    setZoomFromUi(path.slice(0, -1))
+    setEditingId(nodeId)
   }
 
   const ctx: CtxValue = {
@@ -250,6 +262,53 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
             )}
           </div>
         </header>
+
+        {view === 'tree' && suggestions.length > 0 && (
+          <section className="suggestions rise-in">
+            <div className="suggestions-head">
+              <div>
+                <div className="suggestions-kicker">Next up</div>
+                <div className="suggestions-title">
+                  Good candidates for your next move
+                </div>
+              </div>
+              <div className="suggestions-note">
+                Weighted toward stars, momentum, and nearly finished branches
+              </div>
+            </div>
+            <div className="suggestions-grid">
+              {suggestions.map((item, index) => {
+                const parentPath = item.path.slice(0, -1)
+                const pathLabel = parentPath
+                  .map((crumb) => crumb.text || 'Untitled')
+                  .join(' › ')
+
+                return (
+                  <button
+                    key={item.node.id}
+                    className="suggestion-card feature-card"
+                    style={{ animationDelay: `${index * 80}ms` }}
+                    onClick={() => focusSuggestion(item.path, item.node.id)}
+                    title="Open this suggestion"
+                  >
+                    <div className="suggestion-top">
+                      <div className="suggestion-score">{item.score}</div>
+                      <div className="suggestion-reason">{item.reason}</div>
+                    </div>
+                    <div className="suggestion-text">
+                      {item.node.text || 'Untitled task'}
+                    </div>
+                    {pathLabel ? (
+                      <div className="suggestion-path">{pathLabel}</div>
+                    ) : (
+                      <div className="suggestion-path">Root level</div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {view === 'tree' && zoom.length > 0 && (
           <nav className="breadcrumbs">

@@ -1,4 +1,11 @@
-import type { DropPosition, StarredItem, TreeNode } from './types'
+import type { Breadcrumb, DropPosition, StarredItem, TreeNode } from './types'
+
+export type SuggestionItem = {
+  node: TreeNode
+  path: Breadcrumb[]
+  score: number
+  reason: string
+}
 
 function toSlug(value: string): string {
   const normalized = value
@@ -108,6 +115,232 @@ export function getAllStarred(
     result.push(...getAllStarred(node.children, nextPath))
   }
   return result
+}
+
+function hashString(value: string): number {
+  let hash = 2166136261
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return hash >>> 0
+}
+
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0
+
+  return () => {
+    state += 0x6d2b79f5
+    let value = state
+    value = Math.imul(value ^ (value >>> 15), value | 1)
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function getSuggestionReason({
+  node,
+  remainingLeaves,
+  totalLeaves,
+  depth,
+}: {
+  node: TreeNode
+  remainingLeaves: number
+  totalLeaves: number
+  depth: number
+}): string {
+  const parts: string[] = []
+
+  if (node.starred) {
+    parts.push('Starred')
+  }
+
+  if (!node.children.length) {
+    parts.push('Leaf task')
+  } else if (remainingLeaves === 1) {
+    parts.push('1 task left')
+  } else if (remainingLeaves <= 3) {
+    parts.push(`${remainingLeaves} tasks left`)
+  } else if (totalLeaves > 0) {
+    parts.push(`${totalLeaves - remainingLeaves} done`)
+  }
+
+  if (node.kind === 'folder') {
+    parts.push('Category')
+  } else if (depth === 0) {
+    parts.push('Top level')
+  } else if (depth === 1) {
+    parts.push('Near top')
+  }
+
+  return parts.slice(0, 2).join(' · ') || 'Next action'
+}
+
+function scoreSuggestion({
+  node,
+  remainingLeaves,
+  totalLeaves,
+  doneLeaves,
+  depth,
+}: {
+  node: TreeNode
+  remainingLeaves: number
+  totalLeaves: number
+  doneLeaves: number
+  depth: number
+}): number {
+  if (remainingLeaves <= 0) {
+    return 0
+  }
+
+  let score = node.children.length ? 40 : 66
+
+  if (node.starred) {
+    score += 28
+  }
+
+  if (!node.children.length) {
+    score += 18
+  }
+
+  if (remainingLeaves === 1) {
+    score += 24
+  } else if (remainingLeaves === 2) {
+    score += 18
+  } else if (remainingLeaves <= 4) {
+    score += 10
+  }
+
+  if (node.children.length > 0 && remainingLeaves <= 2) {
+    score += 20
+  }
+
+  if (doneLeaves > 0) {
+    score += Math.min(12, doneLeaves * 3)
+  }
+
+  if (totalLeaves >= 4 && doneLeaves / totalLeaves >= 0.6) {
+    score += 10
+  }
+
+  if (node.kind === 'folder') {
+    score -= 18
+  }
+
+  score -= depth * 3
+
+  if (depth === 0) {
+    score += 8
+  }
+
+  if (!node.text.trim()) {
+    score -= 25
+  }
+
+  return score
+}
+
+export function getNextActionSuggestions(
+  nodes: TreeNode[],
+  seed: string,
+  limit = 3,
+): SuggestionItem[] {
+  const suggestions: SuggestionItem[] = []
+
+  const visitNode = (
+    node: TreeNode,
+    breadcrumbPath: Breadcrumb[],
+    depth: number,
+  ): { doneLeaves: number; totalLeaves: number } => {
+    let doneLeaves = 0
+    let totalLeaves = 0
+    const nextPath = [...breadcrumbPath, { id: node.id, text: node.text }]
+
+    if (!node.children.length) {
+      if (node.kind !== 'folder') {
+        totalLeaves = 1
+        doneLeaves = node.completed ? 1 : 0
+      }
+    } else {
+      for (const child of node.children) {
+        const childMetrics = visitNode(child, nextPath, depth + 1)
+        doneLeaves += childMetrics.doneLeaves
+        totalLeaves += childMetrics.totalLeaves
+      }
+    }
+
+    const remainingLeaves = totalLeaves - doneLeaves
+    const trimmedText = node.text.trim()
+    const actionable =
+      trimmedText.length > 0 &&
+      !node.completed &&
+      (node.kind !== 'folder' || remainingLeaves > 0)
+
+    if (actionable && remainingLeaves > 0) {
+      const score = scoreSuggestion({
+        node,
+        remainingLeaves,
+        totalLeaves,
+        doneLeaves,
+        depth,
+      })
+
+      if (score > 0) {
+        suggestions.push({
+          node,
+          path: nextPath,
+          score,
+          reason: getSuggestionReason({
+            node,
+            remainingLeaves,
+            totalLeaves,
+            depth,
+          }),
+        })
+      }
+    }
+
+    return { doneLeaves, totalLeaves }
+  }
+
+  for (const node of nodes) {
+    visitNode(node, [], 0)
+  }
+
+  if (!suggestions.length) {
+    return []
+  }
+
+  const pool = suggestions
+    .sort((left, right) => right.score - left.score)
+    .slice(0, Math.max(limit * 4, 8))
+
+  const rng = mulberry32(
+    hashString(`${seed}|${pool.map((item) => item.node.id).join(',')}`),
+  )
+  const picks: SuggestionItem[] = []
+
+  while (pool.length > 0 && picks.length < limit) {
+    const lowestScore = Math.min(...pool.map((item) => item.score))
+    const weights = pool.map((item) => item.score - lowestScore + 1)
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
+
+    let roll = rng() * totalWeight
+    let index = 0
+    for (; index < pool.length; index += 1) {
+      roll -= weights[index]
+      if (roll <= 0) {
+        break
+      }
+    }
+
+    const [picked] = pool.splice(Math.min(index, pool.length - 1), 1)
+    picks.push(picked)
+  }
+
+  return picks
 }
 
 export function upd(
