@@ -421,6 +421,46 @@ body,
   overflow-y: auto;
 }
 
+.loading-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.loading-shell {
+  width: min(100%, 18rem);
+  border: 0.0625rem solid #1e1c1b;
+  background: #121110;
+  border-radius: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1rem 0.875rem;
+}
+
+.loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 0.125rem solid #2a2725;
+  border-top-color: #cf7d3c;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-copy {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: #a49c95;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .node {
   display: flex;
   align-items: center;

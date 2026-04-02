@@ -45,31 +45,76 @@ function toBreadcrumbPath(zoom: Breadcrumb[]): string {
 }
 
 export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
-  const initialState = loadPersistedState()
-  const [tree, setTree] = useState<TreeNode[]>(initialState.tree)
+  const [isReady, setIsReady] = useState(false)
+  const [tree, setTree] = useState<TreeNode[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(initialState.zoom)
-  const [view, setView] = useState<ViewMode>(initialState.view)
+  const [zoom, setZoom] = useState<Breadcrumb[]>([])
+  const [view, setView] = useState<ViewMode>('tree')
 
   const navigate = useNavigate()
   const location = useLocation()
   const pathKey = useMemo(() => pathSegments.join('/'), [pathSegments])
 
   useEffect(() => {
+    const persisted = loadPersistedState()
+    setTree(persisted.tree)
+    setZoom(persisted.zoom)
+    setView(persisted.view)
+    setIsReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isReady) {
+      return
+    }
+
     const nextZoom = resolveZoomFromSegments(tree, pathSegments)
     setZoom((prev) => (isSameZoom(prev, nextZoom) ? prev : nextZoom))
-  }, [pathKey, tree, pathSegments])
+  }, [isReady, pathKey, tree, pathSegments])
 
   useEffect(() => {
+    if (!isReady) {
+      return
+    }
+
     savePersistedState({ tree, zoom, view })
-  }, [tree, zoom, view])
+  }, [isReady, tree, zoom, view])
 
   useEffect(() => {
+    if (!isReady) {
+      return
+    }
+
     const nextPath = toBreadcrumbPath(zoom)
     if (location.pathname !== nextPath) {
       navigate({ to: nextPath, replace: true })
     }
-  }, [zoom, location.pathname, navigate])
+  }, [isReady, zoom, location.pathname, navigate])
+
+  if (!isReady) {
+    return (
+      <div className="app">
+        <header className="header">
+          <div className="brand">
+            <span className="brand-icon">⬡</span>
+            <div>
+              <div className="brand-name">TodoTree</div>
+              <div className="brand-sub">
+                Infinite hierarchy · Focused execution
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="main loading-main">
+          <div className="loading-shell">
+            <div className="loading-spinner" />
+            <div className="loading-copy">Loading your tree...</div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   const zoomedNode = zoom.length
     ? findNode(tree, zoom[zoom.length - 1].id)
