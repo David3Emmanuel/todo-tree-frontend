@@ -10,7 +10,7 @@ export function HarvestView() {
       <div className="empty">
         <div style={{ fontSize: 44, opacity: 0.15 }}>★</div>
         <div>No pinned tasks yet</div>
-        <div style={{ fontSize: 12, color: '#2e2c2a' }}>
+        <div style={{ fontSize: 12, color: '#928c86' }}>
           Star tasks in the Tree view to harvest them here
         </div>
       </div>
@@ -39,7 +39,7 @@ export function HarvestView() {
                 style={{
                   fontFamily: "'Courier Prime', monospace",
                   fontSize: 14,
-                  color: allDone ? '#333130' : '#e6dfd6',
+                  color: allDone ? '#928c86' : '#e6dfd6',
                   textDecoration: allDone ? 'line-through' : 'none',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
