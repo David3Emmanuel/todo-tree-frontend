@@ -5,7 +5,14 @@ import { loadPersistedState, savePersistedState } from './persistence'
 import { TodoCtx } from './todo-context'
 import { TodoNode } from './TodoNode'
 import type { Breadcrumb, CtxValue, TreeNode, ViewMode } from './types'
-import { findNode, getAllStarred, makeNode, upd } from './tree-utils'
+import {
+  findNode,
+  getAllStarred,
+  makeNode,
+  upd,
+  collapseAll,
+  expandAll,
+} from './tree-utils'
 
 function resolveZoomFromSegments(
   tree: TreeNode[],
@@ -223,6 +230,24 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                 <span className="badge">{starred.length}</span>
               )}
             </button>
+            {view === 'tree' && displayNodes.length > 0 && (
+              <>
+                <button
+                  className="tab"
+                  onClick={() => setTree(expandAll)}
+                  title="Expand all nodes"
+                >
+                  ▼ Expand
+                </button>
+                <button
+                  className="tab"
+                  onClick={() => setTree(collapseAll)}
+                  title="Collapse all nodes"
+                >
+                  ▶ Collapse
+                </button>
+              </>
+            )}
           </div>
         </header>
 

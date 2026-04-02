@@ -301,3 +301,35 @@ export function moveN(
   insert(clone)
   return clone
 }
+
+export function collapseAll(tree: TreeNode[]): TreeNode[] {
+  const clone = dc(tree)
+
+  const walk = (nodes: TreeNode[]): void => {
+    for (const node of nodes) {
+      node.collapsed = true
+      if (node.children.length) {
+        walk(node.children)
+      }
+    }
+  }
+
+  walk(clone)
+  return clone
+}
+
+export function expandAll(tree: TreeNode[]): TreeNode[] {
+  const clone = dc(tree)
+
+  const walk = (nodes: TreeNode[]): void => {
+    for (const node of nodes) {
+      node.collapsed = false
+      if (node.children.length) {
+        walk(node.children)
+      }
+    }
+  }
+
+  walk(clone)
+  return clone
+}
