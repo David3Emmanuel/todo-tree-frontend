@@ -4,10 +4,10 @@ import { useAuth } from '../auth/auth-context'
 import { BrandHeader } from '../layout/BrandHeader'
 import { LoadingScreen } from '../layout/LoadingScreen'
 import { HarvestView } from './HarvestView'
-import { loadPersistedState, savePersistedState } from './persistence'
 import { TodoCtx } from './todo-context'
 import { TodoNode } from './TodoNode'
-import type { Breadcrumb, CtxValue, TreeNode, ViewMode } from './types'
+import { usePersistence } from './usePersistence'
+import type { Breadcrumb, CtxValue, TreeNode } from './types'
 import {
   findNode,
   getAllStarred,
@@ -75,37 +75,28 @@ function dateInputToMs(value: string): number | null {
   return parsed.getTime()
 }
 
-function pruneSuggestionHides(
-  hides: Record<string, number>,
-  now: number,
-): Record<string, number> {
-  const result: Record<string, number> = {}
-  for (const [key, until] of Object.entries(hides)) {
-    if (until > now) {
-      result[key] = until
-    }
-  }
-  return result
-}
-
 export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
-  const [isReady, setIsReady] = useState(false)
-  const [tree, setTree] = useState<TreeNode[]>([])
+  const { logout, isAuthenticated, isHydrating } = useAuth()
+  const {
+    isReady,
+    tree,
+    setTree,
+    zoom,
+    setZoom,
+    view,
+    setView,
+    setSuggestionHides,
+    activeSuggestionHides,
+    suggestionTick,
+  } = usePersistence(isAuthenticated)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [zoom, setZoom] = useState<Breadcrumb[]>([])
-  const [view, setView] = useState<ViewMode>('tree')
-  const [suggestionHides, setSuggestionHides] = useState<
-    Record<string, number>
-  >({})
   const [hideMenuId, setHideMenuId] = useState<string | null>(null)
   const [hideUntilDate, setHideUntilDate] = useState('')
-  const [suggestionTick, setSuggestionTick] = useState(() => Date.now())
   const zoomSyncSourceRef = useRef<'path' | 'ui' | null>(null)
   const pendingEditingIdRef = useRef<string | null>(null)
   const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
 
   const navigate = useNavigate()
-  const { logout, isAuthenticated, isHydrating } = useAuth()
   const location = useLocation()
   const pathKey = useMemo(() => pathSegments.join('/'), [pathSegments])
   const resolvedZoomFromPath = useMemo(
@@ -128,20 +119,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
       window.location.replace('/auth')
     })
   }, [isAuthenticated, isHydrating, location.pathname, navigate])
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setIsReady(false)
-      return
-    }
-
-    const persisted = loadPersistedState()
-    setTree(persisted.tree)
-    setZoom(persisted.zoom)
-    setView(persisted.view)
-    setSuggestionHides(persisted.suggestionHides ?? {})
-    setIsReady(true)
-  }, [isAuthenticated])
 
   useEffect(() => {
     if (!isAuthenticated || !isReady) {
@@ -170,39 +147,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     zoomPath,
     resolvedZoomFromPath,
   ])
-
-  const activeSuggestionHides = useMemo(
-    () => pruneSuggestionHides(suggestionHides, suggestionTick),
-    [suggestionHides, suggestionTick],
-  )
-
-  useEffect(() => {
-    if (!isAuthenticated || !isReady) {
-      return
-    }
-
-    savePersistedState({
-      tree,
-      zoom,
-      view,
-      suggestionHides: activeSuggestionHides,
-    })
-  }, [isReady, tree, zoom, view, activeSuggestionHides])
-
-  useEffect(() => {
-    const activeExpiryTimes = Object.values(activeSuggestionHides)
-    if (!activeExpiryTimes.length) {
-      return
-    }
-
-    const nextExpiry = Math.min(...activeExpiryTimes)
-    const delay = Math.max(25, nextExpiry - Date.now() + 25)
-    const timeoutId = window.setTimeout(() => {
-      setSuggestionTick(Date.now())
-    }, delay)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [activeSuggestionHides])
 
   useEffect(() => {
     if (!pendingEditingIdRef.current) {
