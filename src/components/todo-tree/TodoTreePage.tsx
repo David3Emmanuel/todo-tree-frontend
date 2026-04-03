@@ -103,7 +103,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
 
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, isAuthenticated, isHydrating } = useAuth()
   const location = useLocation()
   const pathKey = useMemo(() => pathSegments.join('/'), [pathSegments])
   const resolvedZoomFromPath = useMemo(
@@ -116,6 +116,14 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     zoomSyncSourceRef.current = 'ui'
     setZoom(value)
   }
+
+  useEffect(() => {
+    if (isHydrating || isAuthenticated) {
+      return
+    }
+
+    void navigate({ to: '/auth', replace: true })
+  }, [isAuthenticated, isHydrating, navigate])
 
   useEffect(() => {
     const persisted = loadPersistedState()
@@ -224,7 +232,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     )
   }, [activeSuggestionHides, suggestionTick, tree])
 
-  if (!isReady) {
+  if (isHydrating || !isAuthenticated || !isReady) {
     return (
       <div className="app">
         <header className="header">
