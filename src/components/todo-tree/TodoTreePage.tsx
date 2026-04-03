@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from '@tanstack/react-router'
+import { useAuth } from '../auth/auth-context'
 import { HarvestView } from './HarvestView'
 import { loadPersistedState, savePersistedState } from './persistence'
 import { TodoCtx } from './todo-context'
@@ -102,6 +103,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
 
   const navigate = useNavigate()
+  const { logout } = useAuth()
   const location = useLocation()
   const pathKey = useMemo(() => pathSegments.join('/'), [pathSegments])
   const resolvedZoomFromPath = useMemo(
@@ -357,6 +359,15 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                 </button>
               </>
             )}
+            <button
+              className="tab"
+              onClick={() => {
+                logout()
+                navigate({ to: '/auth' })
+              }}
+            >
+              Logout
+            </button>
           </div>
         </header>
 
