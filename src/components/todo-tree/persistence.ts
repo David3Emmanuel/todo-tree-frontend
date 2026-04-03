@@ -1,4 +1,3 @@
-import { INIT } from './init-data'
 import type { Breadcrumb, PersistedState, TreeNode } from './types'
 
 const STORAGE_KEY = 'todo-tree-state'
@@ -40,7 +39,7 @@ function normalizeSuggestionHides(value: unknown): Record<string, number> {
 }
 
 function emptyPersistedState(): PersistedState {
-  return { tree: INIT, zoom: [], view: 'tree', suggestionHides: {} }
+  return { tree: [], zoom: [], view: 'tree', suggestionHides: {} }
 }
 
 export function loadPersistedState(): PersistedState {
@@ -61,7 +60,7 @@ export function loadPersistedState(): PersistedState {
       tree:
         Array.isArray(parsed.tree) && parsed.tree.length
           ? normalizeTree(parsed.tree as TreeNode[])
-          : INIT,
+          : [],
       zoom: Array.isArray(parsed.zoom) ? (parsed.zoom as Breadcrumb[]) : [],
       view: parsed.view === 'harvest' ? 'harvest' : 'tree',
       suggestionHides: normalizeSuggestionHides(parsed.suggestionHides),
