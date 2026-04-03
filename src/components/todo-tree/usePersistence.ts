@@ -1,13 +1,21 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
 } from 'react'
 
-import { loadPersistedState, savePersistedState } from './persistence'
-import type { Breadcrumb, TreeNode, ViewMode } from './types'
+import {
+  fetchRemotePersistedState,
+  loadPersistedState,
+  saveRemotePersistedState,
+  savePersistedState,
+} from './persistence'
+import type { Breadcrumb, PersistedState, TreeNode, ViewMode } from './types'
+
+const REMOTE_SYNC_DEBOUNCE_MS = 1200
 
 function pruneSuggestionHides(
   hides: Record<string, number>,
@@ -22,6 +30,15 @@ function pruneSuggestionHides(
   }
 
   return result
+}
+
+function hasAnyPersistedContent(state: PersistedState): boolean {
+  return (
+    state.tree.length > 0 ||
+    state.zoom.length > 0 ||
+    state.view === 'harvest' ||
+    Object.keys(state.suggestionHides).length > 0
+  )
 }
 
 export type UsePersistenceResult = {
@@ -39,21 +56,30 @@ export type UsePersistenceResult = {
   setSuggestionTick: Dispatch<SetStateAction<number>>
 }
 
-export function usePersistence(isAuthenticated: boolean): UsePersistenceResult {
+export function usePersistence(
+  isAuthenticated: boolean,
+  jwt: string | null,
+): UsePersistenceResult {
   const [isReady, setIsReady] = useState(false)
   const [tree, setTree] = useState<TreeNode[]>([])
   const [zoom, setZoom] = useState<Breadcrumb[]>([])
   const [view, setView] = useState<ViewMode>('tree')
+  const [serverUpdatedAtMs, setServerUpdatedAtMs] = useState<
+    number | undefined
+  >(undefined)
   const [suggestionHides, setSuggestionHides] = useState<
     Record<string, number>
   >({})
   const [suggestionTick, setSuggestionTick] = useState(() => Date.now())
+  const lastSyncedFingerprintRef = useRef<string>('')
 
   useEffect(() => {
     let isCancelled = false
 
     if (!isAuthenticated) {
       setIsReady(false)
+      setServerUpdatedAtMs(undefined)
+      lastSyncedFingerprintRef.current = ''
       return () => {
         isCancelled = true
       }
@@ -71,14 +97,60 @@ export function usePersistence(isAuthenticated: boolean): UsePersistenceResult {
       setZoom(persisted.zoom)
       setView(persisted.view)
       setSuggestionHides(persisted.suggestionHides ?? {})
+      setServerUpdatedAtMs(persisted.serverUpdatedAtMs)
       setSuggestionTick(Date.now())
+      lastSyncedFingerprintRef.current = JSON.stringify({
+        tree: persisted.tree,
+        zoom: persisted.zoom,
+        view: persisted.view,
+        suggestionHides: persisted.suggestionHides,
+      })
       setIsReady(true)
+
+      if (!jwt) {
+        return
+      }
+
+      try {
+        const remote = await fetchRemotePersistedState(jwt)
+        if (!remote || isCancelled) {
+          return
+        }
+
+        const localServerUpdatedAtMs = persisted.serverUpdatedAtMs ?? 0
+        const localHasContent = hasAnyPersistedContent(persisted)
+        const shouldApplyRemote =
+          localServerUpdatedAtMs > 0
+            ? remote.serverUpdatedAtMs > localServerUpdatedAtMs
+            : !localHasContent
+
+        if (!shouldApplyRemote) {
+          return
+        }
+
+        setTree(remote.state.tree)
+        setZoom(remote.state.zoom)
+        setView(remote.state.view)
+        setSuggestionHides(remote.state.suggestionHides)
+        setServerUpdatedAtMs(remote.state.serverUpdatedAtMs)
+        setSuggestionTick(Date.now())
+        lastSyncedFingerprintRef.current = JSON.stringify({
+          tree: remote.state.tree,
+          zoom: remote.state.zoom,
+          view: remote.state.view,
+          suggestionHides: remote.state.suggestionHides,
+        })
+
+        await savePersistedState(remote.state)
+      } catch {
+        // Continue using local IndexedDB state if remote refresh fails.
+      }
     })()
 
     return () => {
       isCancelled = true
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, jwt])
 
   const activeSuggestionHides = useMemo(
     () => pruneSuggestionHides(suggestionHides, suggestionTick),
@@ -95,10 +167,59 @@ export function usePersistence(isAuthenticated: boolean): UsePersistenceResult {
       zoom,
       view,
       suggestionHides: activeSuggestionHides,
+      serverUpdatedAtMs,
     }).catch(() => {
       // Offline-first behavior should not block editing on persistence errors.
     })
-  }, [isAuthenticated, isReady, tree, zoom, view, activeSuggestionHides])
+  }, [
+    isAuthenticated,
+    isReady,
+    tree,
+    zoom,
+    view,
+    activeSuggestionHides,
+    serverUpdatedAtMs,
+  ])
+
+  useEffect(() => {
+    if (!isAuthenticated || !isReady || !jwt) {
+      return
+    }
+
+    const syncState = {
+      tree,
+      zoom,
+      view,
+      suggestionHides: activeSuggestionHides,
+    }
+    const fingerprint = JSON.stringify(syncState)
+    if (fingerprint === lastSyncedFingerprintRef.current) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          return
+        }
+        try {
+          const remote = await saveRemotePersistedState(jwt, syncState)
+          if (!remote) {
+            return
+          }
+
+          lastSyncedFingerprintRef.current = fingerprint
+          if (remote.serverUpdatedAtMs > 0) {
+            setServerUpdatedAtMs(remote.serverUpdatedAtMs)
+          }
+        } catch {
+          // Keep working locally; sync retries on next state change.
+        }
+      })()
+    }, REMOTE_SYNC_DEBOUNCE_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [isAuthenticated, isReady, jwt, tree, zoom, view, activeSuggestionHides])
 
   useEffect(() => {
     const activeExpiryTimes = Object.values(activeSuggestionHides)

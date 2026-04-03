@@ -37,4 +37,5 @@ export type PersistedState = {
   zoom: Breadcrumb[]
   view: ViewMode
   suggestionHides: Record<string, number>
+  serverUpdatedAtMs?: number
 }

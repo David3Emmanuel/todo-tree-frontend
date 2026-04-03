@@ -40,7 +40,7 @@ function dateInputToMs(value: string): number | null {
 }
 
 export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
-  const { logout, isAuthenticated, isHydrating } = useAuth()
+  const { logout, jwt, isAuthenticated, isHydrating } = useAuth()
   const {
     isReady,
     tree,
@@ -52,7 +52,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     setSuggestionHides,
     activeSuggestionHides,
     suggestionTick,
-  } = usePersistence(isAuthenticated)
+  } = usePersistence(isAuthenticated, jwt)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [hideMenuId, setHideMenuId] = useState<string | null>(null)
   const [hideUntilDate, setHideUntilDate] = useState('')
