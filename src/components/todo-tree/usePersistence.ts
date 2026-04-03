@@ -50,18 +50,34 @@ export function usePersistence(isAuthenticated: boolean): UsePersistenceResult {
   const [suggestionTick, setSuggestionTick] = useState(() => Date.now())
 
   useEffect(() => {
+    let isCancelled = false
+
     if (!isAuthenticated) {
       setIsReady(false)
-      return
+      return () => {
+        isCancelled = true
+      }
     }
 
-    const persisted = loadPersistedState()
-    setTree(persisted.tree)
-    setZoom(persisted.zoom)
-    setView(persisted.view)
-    setSuggestionHides(persisted.suggestionHides ?? {})
-    setSuggestionTick(Date.now())
-    setIsReady(true)
+    setIsReady(false)
+
+    void (async () => {
+      const persisted = await loadPersistedState()
+      if (isCancelled) {
+        return
+      }
+
+      setTree(persisted.tree)
+      setZoom(persisted.zoom)
+      setView(persisted.view)
+      setSuggestionHides(persisted.suggestionHides ?? {})
+      setSuggestionTick(Date.now())
+      setIsReady(true)
+    })()
+
+    return () => {
+      isCancelled = true
+    }
   }, [isAuthenticated])
 
   const activeSuggestionHides = useMemo(
@@ -74,11 +90,13 @@ export function usePersistence(isAuthenticated: boolean): UsePersistenceResult {
       return
     }
 
-    savePersistedState({
+    void savePersistedState({
       tree,
       zoom,
       view,
       suggestionHides: activeSuggestionHides,
+    }).catch(() => {
+      // Offline-first behavior should not block editing on persistence errors.
     })
   }, [isAuthenticated, isReady, tree, zoom, view, activeSuggestionHides])
 
