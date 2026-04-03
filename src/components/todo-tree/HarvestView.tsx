@@ -102,7 +102,6 @@ export function HarvestView() {
         Starred tasks harvested from across your tree
       </div>
       {items.map((item) => {
-        const canFocus = item.children.length > 0
         const isFolder = item.kind === 'folder'
         const { done, total } = getProgress(item)
         const allDone = !isFolder && total > 0 && done === total
@@ -110,13 +109,12 @@ export function HarvestView() {
         return (
           <div
             key={item.id}
-            className={`h-item${canFocus ? ' can-focus' : ''}`}
-            onClick={() => canFocus && setFocusRootId(item.id)}
-            role={canFocus ? 'button' : undefined}
-            tabIndex={canFocus ? 0 : undefined}
+            className="h-item can-focus"
+            onClick={() => setFocusRootId(item.id)}
+            role="button"
+            tabIndex={0}
             onKeyDown={(event) => {
               if (
-                canFocus &&
                 (event.key === 'Enter' || event.key === ' ') &&
                 !event.defaultPrevented
               ) {
@@ -124,13 +122,7 @@ export function HarvestView() {
                 setFocusRootId(item.id)
               }
             }}
-            title={
-              canFocus
-                ? 'Open focused subtree'
-                : isFolder
-                  ? 'Category with no descendants'
-                  : undefined
-            }
+            title="Open focused subtree"
           >
             <button
               className={`check${isFolder ? ' folder' : ''}${allDone ? ' done' : ''}`}
