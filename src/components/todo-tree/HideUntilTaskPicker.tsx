@@ -1,0 +1,155 @@
+import { useMemo, useState } from 'react'
+import type { TreeNode } from './types'
+
+type BlockerTaskOption = {
+  id: string
+  text: string
+  pathLabel: string
+  completed: boolean
+}
+
+type HideUntilTaskPickerProps = {
+  tree: TreeNode[]
+  excludeId: string
+  onApply: (taskId: string) => void
+}
+
+function collectBlockerTaskOptions(
+  nodes: TreeNode[],
+  excludeId: string,
+  path: string[] = [],
+): BlockerTaskOption[] {
+  const result: BlockerTaskOption[] = []
+
+  for (const node of nodes) {
+    const nextPath = [...path, node.text]
+    if (node.id !== excludeId && node.kind !== 'folder') {
+      result.push({
+        id: node.id,
+        text: node.text || 'Untitled task',
+        pathLabel:
+          path.map((crumb) => crumb || 'Untitled').join(' › ') || 'Root level',
+        completed: node.completed,
+      })
+    }
+
+    result.push(
+      ...collectBlockerTaskOptions(node.children, excludeId, nextPath),
+    )
+  }
+
+  return result
+}
+
+export function HideUntilTaskPicker({
+  tree,
+  excludeId,
+  onApply,
+}: HideUntilTaskPickerProps) {
+  const [query, setQuery] = useState('')
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+
+  const taskOptions = useMemo(
+    () => collectBlockerTaskOptions(tree, excludeId),
+    [excludeId, tree],
+  )
+
+  const filteredOptions = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    const visibleOptions = normalizedQuery
+      ? taskOptions.filter((option) => {
+          const haystack = `${option.text} ${option.pathLabel}`.toLowerCase()
+          return haystack.includes(normalizedQuery)
+        })
+      : taskOptions
+
+    return visibleOptions.slice(0, 8)
+  }, [query, taskOptions])
+
+  const selectedTask = useMemo(
+    () => taskOptions.find((option) => option.id === selectedTaskId) ?? null,
+    [selectedTaskId, taskOptions],
+  )
+
+  return (
+    <div className="suggestion-task-picker">
+      <input
+        className="suggestion-task-input"
+        type="text"
+        value={query}
+        placeholder="Search blocker task"
+        onChange={(event) => {
+          setQuery(event.target.value)
+          setSelectedTaskId(null)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && filteredOptions.length > 0) {
+            event.preventDefault()
+            const [firstOption] = filteredOptions
+            setSelectedTaskId(firstOption.id)
+            setQuery(firstOption.text)
+          }
+        }}
+      />
+      <div className="suggestion-task-list" role="listbox">
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((option) => {
+            const isSelected = option.id === selectedTaskId
+
+            return (
+              <button
+                key={option.id}
+                className={`suggestion-task-option${isSelected ? ' selected' : ''}`}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setSelectedTaskId(option.id)
+                  setQuery(option.text)
+                }}
+                title={option.pathLabel}
+                role="option"
+                aria-selected={isSelected}
+              >
+                <span className="suggestion-task-option-main">
+                  {option.text}
+                </span>
+                <span className="suggestion-task-option-meta">
+                  {option.completed ? 'done' : 'open'}
+                  {' · '}
+                  {option.pathLabel}
+                </span>
+              </button>
+            )
+          })
+        ) : (
+          <div className="suggestion-task-empty">
+            No blocker tasks match that search.
+          </div>
+        )}
+      </div>
+      <div className="suggestion-task-selected">
+        {selectedTask ? (
+          <>
+            Selected: {selectedTask.text}{' '}
+            <span>· {selectedTask.pathLabel}</span>
+          </>
+        ) : (
+          'Pick a blocker task to hide until it is completed.'
+        )}
+      </div>
+      <button
+        className="suggestion-hide-apply"
+        onClick={() => {
+          if (!selectedTask) {
+            return
+          }
+
+          onApply(selectedTask.id)
+        }}
+        disabled={!selectedTask}
+      >
+        Hide until task
+      </button>
+    </div>
+  )
+}

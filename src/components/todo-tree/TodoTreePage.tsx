@@ -5,6 +5,7 @@ import { BrandHeader } from '../layout/BrandHeader'
 import { LoadingScreen } from '../layout/LoadingScreen'
 import { FocusPomodoro } from './FocusPomodoro'
 import { HarvestView } from './HarvestView'
+import { HideUntilTaskPicker } from './HideUntilTaskPicker'
 import { TodoCtx } from './todo-context'
 import { TodoNode } from './TodoNode'
 import { usePersistence } from './usePersistence'
@@ -67,41 +68,6 @@ function isSuggestionHidden(
   return hiddenByDate || hiddenByTask
 }
 
-type BlockerTaskOption = {
-  id: string
-  text: string
-  pathLabel: string
-  completed: boolean
-}
-
-function collectBlockerTaskOptions(
-  nodes: TreeNode[],
-  excludeId: string,
-  path: Breadcrumb[] = [],
-): BlockerTaskOption[] {
-  const result: BlockerTaskOption[] = []
-
-  for (const node of nodes) {
-    const nextPath = [...path, { id: node.id, text: node.text }]
-    if (node.id !== excludeId && node.kind !== 'folder') {
-      result.push({
-        id: node.id,
-        text: node.text || 'Untitled task',
-        pathLabel:
-          path.map((crumb) => crumb.text || 'Untitled').join(' › ') ||
-          'Root level',
-        completed: node.completed,
-      })
-    }
-
-    result.push(
-      ...collectBlockerTaskOptions(node.children, excludeId, nextPath),
-    )
-  }
-
-  return result
-}
-
 export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const { logout, jwt, isAuthenticated, isHydrating } = useAuth()
   const {
@@ -119,8 +85,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [hideMenuId, setHideMenuId] = useState<string | null>(null)
   const [hideUntilDate, setHideUntilDate] = useState('')
-  const [hideTaskQuery, setHideTaskQuery] = useState('')
-  const [hideTaskId, setHideTaskId] = useState<string | null>(null)
   const [focusRootId, setFocusRootId] = useState<string | null>(null)
   const pendingEditingIdRef = useRef<string | null>(null)
   const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
@@ -195,28 +159,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
         !isSuggestionHidden(activeSuggestionHides[item.node.id], tree, now),
     )
   }, [activeSuggestionHides, suggestionTick, tree])
-
-  const hideTaskOptions = useMemo(
-    () => (hideMenuId ? collectBlockerTaskOptions(tree, hideMenuId) : []),
-    [hideMenuId, tree],
-  )
-
-  const filteredHideTaskOptions = useMemo(() => {
-    const query = hideTaskQuery.trim().toLowerCase()
-    const visibleOptions = query
-      ? hideTaskOptions.filter((option) => {
-          const haystack = `${option.text} ${option.pathLabel}`.toLowerCase()
-          return haystack.includes(query)
-        })
-      : hideTaskOptions
-
-    return visibleOptions.slice(0, 8)
-  }, [hideTaskOptions, hideTaskQuery])
-
-  const selectedHideTaskOption = useMemo(
-    () => hideTaskOptions.find((option) => option.id === hideTaskId) ?? null,
-    [hideTaskId, hideTaskOptions],
-  )
 
   if (isHydrating) {
     return <LoadingScreen message="Loading your tree..." />
@@ -323,8 +265,8 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     hideSuggestion(nodeId, until)
   }
 
-  const hideSuggestionUntilTask = (nodeId: string) => {
-    if (!selectedHideTaskOption) {
+  const hideSuggestionUntilTask = (nodeId: string, taskId: string) => {
+    if (!taskId) {
       return
     }
 
@@ -332,25 +274,19 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
       ...prev,
       [nodeId]: {
         ...prev[nodeId],
-        untilTaskId: selectedHideTaskOption.id,
+        untilTaskId: taskId,
       },
     }))
     setHideMenuId(null)
-    setHideTaskQuery('')
-    setHideTaskId(null)
   }
 
   const openHideMenu = (nodeId: string) => {
     setHideMenuId(nodeId)
     setHideUntilDate(formatDateInputValue(new Date(Date.now() + 86400000)))
-    setHideTaskQuery('')
-    setHideTaskId(null)
   }
 
   const closeHideMenu = () => {
     setHideMenuId(null)
-    setHideTaskQuery('')
-    setHideTaskId(null)
   }
 
   const ctx: CtxValue = {
@@ -540,91 +476,13 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                             </button>
                           </div>
                           <div className="suggestion-hide-row suggestion-hide-task-row">
-                            <div className="suggestion-task-picker">
-                              <input
-                                className="suggestion-task-input"
-                                type="text"
-                                value={hideTaskQuery}
-                                placeholder="Search blocker task"
-                                onChange={(event) => {
-                                  setHideTaskQuery(event.target.value)
-                                  setHideTaskId(null)
-                                }}
-                                onKeyDown={(event) => {
-                                  if (
-                                    event.key === 'Enter' &&
-                                    filteredHideTaskOptions.length > 0
-                                  ) {
-                                    event.preventDefault()
-                                    const [firstOption] =
-                                      filteredHideTaskOptions
-                                    setHideTaskId(firstOption.id)
-                                    setHideTaskQuery(firstOption.text)
-                                  }
-                                }}
-                              />
-                              <div
-                                className="suggestion-task-list"
-                                role="listbox"
-                              >
-                                {filteredHideTaskOptions.length > 0 ? (
-                                  filteredHideTaskOptions.map((option) => {
-                                    const isSelected = option.id === hideTaskId
-
-                                    return (
-                                      <button
-                                        key={option.id}
-                                        className={`suggestion-task-option${isSelected ? ' selected' : ''}`}
-                                        type="button"
-                                        onClick={(event) => {
-                                          event.stopPropagation()
-                                          setHideTaskId(option.id)
-                                          setHideTaskQuery(option.text)
-                                        }}
-                                        title={option.pathLabel}
-                                        role="option"
-                                        aria-selected={isSelected}
-                                      >
-                                        <span className="suggestion-task-option-main">
-                                          {option.text}
-                                        </span>
-                                        <span className="suggestion-task-option-meta">
-                                          {option.completed ? 'done' : 'open'}
-                                          {' · '}
-                                          {option.pathLabel}
-                                        </span>
-                                      </button>
-                                    )
-                                  })
-                                ) : (
-                                  <div className="suggestion-task-empty">
-                                    No blocker tasks match that search.
-                                  </div>
-                                )}
-                              </div>
-                              <div className="suggestion-task-selected">
-                                {selectedHideTaskOption ? (
-                                  <>
-                                    Selected: {selectedHideTaskOption.text}{' '}
-                                    <span>
-                                      · {selectedHideTaskOption.pathLabel}
-                                    </span>
-                                  </>
-                                ) : (
-                                  'Pick a blocker task to hide until it is completed.'
-                                )}
-                              </div>
-                            </div>
-                            <button
-                              className="suggestion-hide-apply"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                hideSuggestionUntilTask(item.node.id)
-                              }}
-                              disabled={!selectedHideTaskOption}
-                            >
-                              Hide until task
-                            </button>
+                            <HideUntilTaskPicker
+                              tree={tree}
+                              excludeId={item.node.id}
+                              onApply={(taskId) =>
+                                hideSuggestionUntilTask(item.node.id, taskId)
+                              }
+                            />
                           </div>
                         </div>
                       )}
