@@ -71,6 +71,8 @@ function dateInputToMs(value: string): number | null {
 }
 
 const SUGGESTION_HIDE_UNDO_MS = 3_000
+const GUEST_REMINDER_EDIT_INTERVAL = 10
+const GUEST_REMINDER_TIME_INTERVAL_MS = 3 * 60 * 1000
 
 function isSuggestionHidden(
   rule: SuggestionHideRule | undefined,
@@ -120,6 +122,9 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const pendingEditingIdRef = useRef<string | null>(null)
   const pendingSuggestionHideTimersRef = useRef<Record<string, number>>({})
   const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
+  const guestReminderDismissedAtRef = useRef<number | null>(null)
+  const guestReminderEditCountRef = useRef(0)
+  const guestReminderLastFingerprintRef = useRef<string>('')
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -290,6 +295,91 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
       )
       .slice(0, 3)
   }, [activeSuggestionHides, suggestionTick, tree])
+
+  useEffect(() => {
+    if (!isReady) {
+      return
+    }
+
+    const fingerprint = JSON.stringify({
+      tree,
+      zoom,
+      view,
+      suggestionHides: activeSuggestionHides,
+    })
+
+    if (!guestReminderLastFingerprintRef.current) {
+      guestReminderLastFingerprintRef.current = fingerprint
+      return
+    }
+
+    if (fingerprint === guestReminderLastFingerprintRef.current) {
+      return
+    }
+
+    guestReminderLastFingerprintRef.current = fingerprint
+
+    if (isAuthenticated) {
+      return
+    }
+
+    guestReminderEditCountRef.current += 1
+
+    if (!isGuestReminderDismissed) {
+      return
+    }
+
+    const dismissedAt = guestReminderDismissedAtRef.current ?? Date.now()
+    const reachedEditLimit =
+      guestReminderEditCountRef.current >= GUEST_REMINDER_EDIT_INTERVAL
+    const reachedTimeLimit =
+      Date.now() - dismissedAt >= GUEST_REMINDER_TIME_INTERVAL_MS
+
+    if (!reachedEditLimit && !reachedTimeLimit) {
+      return
+    }
+
+    guestReminderEditCountRef.current = 0
+    guestReminderDismissedAtRef.current = null
+    setIsGuestReminderDismissed(false)
+  }, [
+    isAuthenticated,
+    isGuestReminderDismissed,
+    isReady,
+    tree,
+    zoom,
+    view,
+    activeSuggestionHides,
+  ])
+
+  useEffect(() => {
+    if (isAuthenticated || !isGuestReminderDismissed) {
+      return
+    }
+
+    const dismissedAt = guestReminderDismissedAtRef.current ?? Date.now()
+    guestReminderDismissedAtRef.current = dismissedAt
+    const elapsedMs = Date.now() - dismissedAt
+    const remainingMs = Math.max(0, GUEST_REMINDER_TIME_INTERVAL_MS - elapsedMs)
+
+    const timeoutId = window.setTimeout(() => {
+      guestReminderEditCountRef.current = 0
+      guestReminderDismissedAtRef.current = null
+      setIsGuestReminderDismissed(false)
+    }, remainingMs)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [isAuthenticated, isGuestReminderDismissed])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
+
+    guestReminderEditCountRef.current = 0
+    guestReminderDismissedAtRef.current = null
+    setIsGuestReminderDismissed(false)
+  }, [isAuthenticated])
 
   const showGuestReminder = !isAuthenticated && !isGuestReminderDismissed
 
@@ -580,7 +670,11 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
               </button>
               <button
                 className="guest-save-dismiss-btn"
-                onClick={() => setIsGuestReminderDismissed(true)}
+                onClick={() => {
+                  guestReminderDismissedAtRef.current = Date.now()
+                  guestReminderEditCountRef.current = 0
+                  setIsGuestReminderDismissed(true)
+                }}
                 aria-label="Dismiss guest save reminder"
                 title="Dismiss"
               >
