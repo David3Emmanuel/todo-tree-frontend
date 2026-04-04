@@ -56,6 +56,8 @@ function dateInputToMs(value: string): number | null {
   return parsed.getTime()
 }
 
+const SUGGESTION_HIDE_UNDO_MS = 3_000
+
 function isSuggestionHidden(
   rule: SuggestionHideRule | undefined,
   tree: TreeNode[],
@@ -96,7 +98,11 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const [focusRootId, setFocusRootId] = useState<string | null>(null)
   const [hideMenuPosition, setHideMenuPosition] =
     useState<CSSProperties | null>(null)
+  const [pendingSuggestionHides, setPendingSuggestionHides] = useState<
+    Record<string, number>
+  >({})
   const pendingEditingIdRef = useRef<string | null>(null)
+  const pendingSuggestionHideTimersRef = useRef<Record<string, number>>({})
   const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
 
   const navigate = useNavigate()
@@ -241,12 +247,42 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     }
   }, [hideMenuId])
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      return
+    }
+
+    for (const timeoutId of Object.values(
+      pendingSuggestionHideTimersRef.current,
+    )) {
+      window.clearTimeout(timeoutId)
+    }
+
+    pendingSuggestionHideTimersRef.current = {}
+    setPendingSuggestionHides({})
+  }, [isAuthenticated])
+
+  useEffect(
+    () => () => {
+      for (const timeoutId of Object.values(
+        pendingSuggestionHideTimersRef.current,
+      )) {
+        window.clearTimeout(timeoutId)
+      }
+
+      pendingSuggestionHideTimersRef.current = {}
+    },
+    [],
+  )
+
   const suggestions = useMemo(() => {
     const now = suggestionTick
-    return getNextActionSuggestions(tree, suggestionSeedRef.current, 3).filter(
-      (item) =>
-        !isSuggestionHidden(activeSuggestionHides[item.node.id], tree, now),
-    )
+    return getNextActionSuggestions(tree, suggestionSeedRef.current, 24)
+      .filter(
+        (item) =>
+          !isSuggestionHidden(activeSuggestionHides[item.node.id], tree, now),
+      )
+      .slice(0, 3)
   }, [activeSuggestionHides, suggestionTick, tree])
 
   if (isHydrating) {
@@ -287,6 +323,65 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     void path
     setHideMenuId(null)
     setFocusRootId(nodeId)
+  }
+
+  const clearPendingSuggestionHide = (nodeId: string) => {
+    const timeoutId = pendingSuggestionHideTimersRef.current[nodeId]
+    if (typeof timeoutId === 'number') {
+      window.clearTimeout(timeoutId)
+    }
+
+    delete pendingSuggestionHideTimersRef.current[nodeId]
+    setPendingSuggestionHides((prev) => {
+      if (!prev[nodeId]) {
+        return prev
+      }
+
+      const next = { ...prev }
+      delete next[nodeId]
+      return next
+    })
+  }
+
+  const commitSuggestionHide = (nodeId: string, until: number) => {
+    delete pendingSuggestionHideTimersRef.current[nodeId]
+    setPendingSuggestionHides((prev) => {
+      if (!prev[nodeId]) {
+        return prev
+      }
+
+      const next = { ...prev }
+      delete next[nodeId]
+      return next
+    })
+
+    setSuggestionHides((prev) => ({
+      ...prev,
+      [nodeId]: {
+        ...prev[nodeId],
+        untilDateMs: until,
+      },
+    }))
+  }
+
+  const queueSuggestionHide = (nodeId: string, until: number) => {
+    clearPendingSuggestionHide(nodeId)
+
+    setPendingSuggestionHides((prev) => ({
+      ...prev,
+      [nodeId]: Date.now() + SUGGESTION_HIDE_UNDO_MS,
+    }))
+
+    const timeoutId = window.setTimeout(() => {
+      commitSuggestionHide(nodeId, until)
+    }, SUGGESTION_HIDE_UNDO_MS)
+
+    pendingSuggestionHideTimersRef.current[nodeId] = timeoutId
+    setHideMenuId(null)
+  }
+
+  const undoSuggestionHide = (nodeId: string) => {
+    clearPendingSuggestionHide(nodeId)
   }
 
   const renderFocusNode = (node: TreeNode, depth = 0) => {
@@ -331,14 +426,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   }
 
   const hideSuggestion = (nodeId: string, until: number) => {
-    setSuggestionHides((prev) => ({
-      ...prev,
-      [nodeId]: {
-        ...prev[nodeId],
-        untilDateMs: until,
-      },
-    }))
-    setHideMenuId(null)
+    queueSuggestionHide(nodeId, until)
   }
 
   const hideSuggestionForDuration = (nodeId: string, durationMs: number) => {
@@ -359,13 +447,34 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
       return
     }
 
-    setSuggestionHides((prev) => ({
+    clearPendingSuggestionHide(nodeId)
+    setPendingSuggestionHides((prev) => ({
       ...prev,
-      [nodeId]: {
-        ...prev[nodeId],
-        untilTaskId: taskId,
-      },
+      [nodeId]: Date.now() + SUGGESTION_HIDE_UNDO_MS,
     }))
+
+    const timeoutId = window.setTimeout(() => {
+      delete pendingSuggestionHideTimersRef.current[nodeId]
+      setPendingSuggestionHides((prev) => {
+        if (!prev[nodeId]) {
+          return prev
+        }
+
+        const next = { ...prev }
+        delete next[nodeId]
+        return next
+      })
+
+      setSuggestionHides((prev) => ({
+        ...prev,
+        [nodeId]: {
+          ...prev[nodeId],
+          untilTaskId: taskId,
+        },
+      }))
+    }, SUGGESTION_HIDE_UNDO_MS)
+
+    pendingSuggestionHideTimersRef.current[nodeId] = timeoutId
     setHideMenuId(null)
   }
 
@@ -457,17 +566,26 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                 const pathLabel = parentPath
                   .map((crumb) => crumb.text || 'Untitled')
                   .join(' › ')
+                const isPendingHide =
+                  typeof pendingSuggestionHides[item.node.id] === 'number'
                 const isHideMenuOpen = hideMenuId === item.node.id
 
                 return (
                   <article
                     key={item.node.id}
                     data-suggestion-id={item.node.id}
-                    className="suggestion-card feature-card"
+                    className={`suggestion-card feature-card${isPendingHide ? ' is-flipped' : ''}`}
                     style={{ animationDelay: `${index * 80}ms` }}
-                    onClick={() => focusSuggestion(item.path, item.node.id)}
+                    onClick={() => {
+                      if (!isPendingHide) {
+                        focusSuggestion(item.path, item.node.id)
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        !isPendingHide &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault()
                         focusSuggestion(item.path, item.node.id)
                       }
@@ -476,33 +594,56 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                     tabIndex={0}
                     title="Open this suggestion"
                   >
-                    <div className="suggestion-top">
-                      <div className="suggestion-score">{item.score}</div>
-                      <div className="suggestion-reason">{item.reason}</div>
-                    </div>
-                    <div className="suggestion-text">
-                      {item.node.text || 'Untitled task'}
-                    </div>
-                    {pathLabel ? (
-                      <div className="suggestion-path">{pathLabel}</div>
-                    ) : (
-                      <div className="suggestion-path">Root level</div>
-                    )}
-                    <div className="suggestion-actions">
-                      <button
-                        className="suggestion-hide-btn"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          if (isHideMenuOpen) {
-                            closeHideMenu()
-                          } else {
-                            openHideMenu(item.node.id)
-                          }
-                        }}
-                        title="Hide this suggestion temporarily"
-                      >
-                        Hide
-                      </button>
+                    <div className="suggestion-card-inner">
+                      <div className="suggestion-card-face suggestion-card-front">
+                        <div className="suggestion-top">
+                          <div className="suggestion-score">{item.score}</div>
+                          <div className="suggestion-reason">{item.reason}</div>
+                        </div>
+                        <div className="suggestion-text">
+                          {item.node.text || 'Untitled task'}
+                        </div>
+                        {pathLabel ? (
+                          <div className="suggestion-path">{pathLabel}</div>
+                        ) : (
+                          <div className="suggestion-path">Root level</div>
+                        )}
+                        <div className="suggestion-actions">
+                          <button
+                            className="suggestion-hide-btn"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              if (isHideMenuOpen) {
+                                closeHideMenu()
+                              } else {
+                                openHideMenu(item.node.id)
+                              }
+                            }}
+                            title="Hide this suggestion temporarily"
+                          >
+                            Hide
+                          </button>
+                        </div>
+                      </div>
+                      <div className="suggestion-card-face suggestion-card-back">
+                        <div className="suggestion-back-copy">
+                          {/* <div className="suggestion-back-title">
+                            Hidden for undo
+                          </div> */}
+                          {/* <div className="suggestion-back-note">
+                            Click undo within 1 second to keep it in view.
+                          </div> */}
+                          <button
+                            className="suggestion-undo-btn"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              undoSuggestionHide(item.node.id)
+                            }}
+                          >
+                            Undo
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </article>
                 )

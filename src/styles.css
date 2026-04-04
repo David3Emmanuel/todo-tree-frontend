@@ -500,10 +500,57 @@ body,
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  perspective: 1000px;
 }
 
 .suggestion-card:hover {
   border-color: #cf7d3c;
+}
+
+.suggestion-card-inner {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.suggestion-card.is-flipped .suggestion-card-inner {
+  transform: rotateY(180deg);
+}
+
+.suggestion-card-face {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  backface-visibility: hidden;
+  min-width: 0;
+}
+
+.suggestion-card-back {
+  transform: rotateY(180deg);
+}
+
+.suggestion-back-copy {
+  min-height: 7.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-align: center;
+  padding: 0.35rem 0.2rem 0.2rem;
+}
+
+.suggestion-back-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e6dfd6;
+}
+
+.suggestion-back-note {
+  font-size: 0.675rem;
+  line-height: 1.35;
+  color: #948d86;
 }
 
 .suggestion-top {
@@ -564,7 +611,8 @@ body,
 
 .suggestion-hide-btn,
 .suggestion-hide-option,
-.suggestion-hide-apply {
+.suggestion-hide-apply,
+.suggestion-undo-btn {
   border: 0.0625rem solid #302c29;
   background: #171615;
   color: #d7cfc6;
@@ -580,13 +628,19 @@ body,
 
 .suggestion-hide-btn:hover,
 .suggestion-hide-option:hover,
-.suggestion-hide-apply:hover {
+.suggestion-hide-apply:hover,
+.suggestion-undo-btn:hover {
   border-color: #cf7d3c;
   color: #e8c547;
 }
 
 .suggestion-hide-btn {
   padding: 0.28rem 0.5rem;
+}
+
+.suggestion-undo-btn {
+  padding: 0.38rem 0.7rem;
+  min-width: 4.25rem;
 }
 
 .suggestion-hide-menu {
