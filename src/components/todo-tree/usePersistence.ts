@@ -24,6 +24,12 @@ import type {
 
 const REMOTE_SYNC_DEBOUNCE_MS = 1200
 
+type LoginReconcileClassification =
+  | 'local-empty_remote-nonempty'
+  | 'remote-empty_local-nonempty'
+  | 'no-divergence'
+  | 'divergence-conflict'
+
 function findNodeById(nodes: TreeNode[], id: string): TreeNode | null {
   for (const node of nodes) {
     if (node.id === id) {
@@ -76,6 +82,45 @@ function hasAnyPersistedContent(state: PersistedState): boolean {
   )
 }
 
+function buildStateFingerprint(state: {
+  tree: TreeNode[]
+  zoom: Breadcrumb[]
+  view: ViewMode
+  suggestionHides: SuggestionHideMap
+}): string {
+  return JSON.stringify({
+    tree: state.tree,
+    zoom: state.zoom,
+    view: state.view,
+    suggestionHides: state.suggestionHides,
+  })
+}
+
+function classifyLoginReconcileState(
+  localState: PersistedState,
+  remoteState: PersistedState,
+): LoginReconcileClassification {
+  const localHasContent = hasAnyPersistedContent(localState)
+  const remoteHasContent = hasAnyPersistedContent(remoteState)
+
+  if (!localHasContent && remoteHasContent) {
+    return 'local-empty_remote-nonempty'
+  }
+
+  if (localHasContent && !remoteHasContent) {
+    return 'remote-empty_local-nonempty'
+  }
+
+  const localFingerprint = buildStateFingerprint(localState)
+  const remoteFingerprint = buildStateFingerprint(remoteState)
+
+  if (localFingerprint === remoteFingerprint) {
+    return 'no-divergence'
+  }
+
+  return 'divergence-conflict'
+}
+
 export type UsePersistenceResult = {
   isReady: boolean
   tree: TreeNode[]
@@ -112,6 +157,8 @@ export function usePersistence(
   const reconciledLoginKeyRef = useRef<string>('')
   const loginRemoteSnapshotRef = useRef<RemotePersistedState | null>(null)
   const loginLocalSnapshotRef = useRef<PersistedState | null>(null)
+  const loginReconcileClassificationRef =
+    useRef<LoginReconcileClassification | null>(null)
 
   useEffect(() => {
     let isCancelled = false
@@ -161,6 +208,7 @@ export function usePersistence(
         reconciledLoginKeyRef.current = ''
         loginRemoteSnapshotRef.current = null
         loginLocalSnapshotRef.current = null
+        loginReconcileClassificationRef.current = null
         setHasPendingLoginRemoteSnapshot(false)
         setIsLoginReconciling(false)
       }
@@ -192,8 +240,19 @@ export function usePersistence(
           return
         }
 
+        if (!remote) {
+          loginRemoteSnapshotRef.current = null
+          loginReconcileClassificationRef.current = null
+          setHasPendingLoginRemoteSnapshot(false)
+          return
+        }
+
         loginRemoteSnapshotRef.current = remote
-        setHasPendingLoginRemoteSnapshot(Boolean(remote))
+        loginReconcileClassificationRef.current = classifyLoginReconcileState(
+          localState,
+          remote.state,
+        )
+        setHasPendingLoginRemoteSnapshot(true)
       } catch {
         // Reconciliation fetch failures should not block local usage.
       } finally {
