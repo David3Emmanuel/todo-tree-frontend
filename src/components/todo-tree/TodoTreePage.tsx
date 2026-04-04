@@ -220,8 +220,25 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
       }
     }
 
+    const onClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      const card = document.querySelector(
+        `article[data-suggestion-id="${hideMenuId}"]`,
+      )
+      const menu = document.querySelector('.suggestion-hide-menu[style]')
+
+      // Close if clicking outside both the card and the floating menu
+      if (card && menu && !card.contains(target) && !menu.contains(target)) {
+        closeHideMenu()
+      }
+    }
+
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    document.addEventListener('click', onClick, true)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('click', onClick, true)
+    }
   }, [hideMenuId])
 
   const suggestions = useMemo(() => {
