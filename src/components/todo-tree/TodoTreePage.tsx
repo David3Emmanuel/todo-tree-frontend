@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { useAuth } from '../auth/auth-context'
 import { BrandHeader } from '../layout/BrandHeader'
@@ -86,6 +94,8 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const [hideMenuId, setHideMenuId] = useState<string | null>(null)
   const [hideUntilDate, setHideUntilDate] = useState('')
   const [focusRootId, setFocusRootId] = useState<string | null>(null)
+  const [hideMenuPosition, setHideMenuPosition] =
+    useState<CSSProperties | null>(null)
   const pendingEditingIdRef = useRef<string | null>(null)
   const suggestionSeedRef = useRef(Math.random().toString(36).slice(2))
 
@@ -151,6 +161,68 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [focusRoot])
+
+  useLayoutEffect(() => {
+    const updateMenuPosition = (): void => {
+      if (!hideMenuId) {
+        setHideMenuPosition(null)
+        return
+      }
+
+      const card = document.querySelector(
+        `article[data-suggestion-id="${hideMenuId}"]`,
+      ) as HTMLElement | null
+      if (!card) {
+        setHideMenuPosition(null)
+        return
+      }
+
+      const button = card.querySelector(
+        '.suggestion-hide-btn',
+      ) as HTMLElement | null
+      if (!button) {
+        setHideMenuPosition(null)
+        return
+      }
+
+      const rect = button.getBoundingClientRect()
+      const cardRect = card.getBoundingClientRect()
+      const menuLeft = Math.max(8, rect.left + rect.width / 2)
+
+      setHideMenuPosition({
+        position: 'fixed',
+        left: `${menuLeft}px`,
+        top: `${rect.bottom + 6}px`,
+        width: `${cardRect.width}px`,
+        zIndex: 99999,
+        transform: 'translateX(-50%)',
+      })
+    }
+
+    updateMenuPosition()
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [hideMenuId])
+
+  useEffect(() => {
+    if (!hideMenuId) {
+      return
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeHideMenu()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [hideMenuId])
 
   const suggestions = useMemo(() => {
     const now = suggestionTick
@@ -373,6 +445,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                 return (
                   <article
                     key={item.node.id}
+                    data-suggestion-id={item.node.id}
                     className="suggestion-card feature-card"
                     style={{ animationDelay: `${index * 80}ms` }}
                     onClick={() => focusSuggestion(item.path, item.node.id)}
@@ -413,79 +486,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                       >
                         Hide
                       </button>
-                      {isHideMenuOpen && (
-                        <div
-                          className="suggestion-hide-menu"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className="suggestion-hide-row">
-                            <button
-                              className="suggestion-hide-option"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                hideSuggestionForDuration(
-                                  item.node.id,
-                                  60 * 60 * 1000,
-                                )
-                              }}
-                            >
-                              1h
-                            </button>
-                            <button
-                              className="suggestion-hide-option"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                hideSuggestionForDuration(
-                                  item.node.id,
-                                  24 * 60 * 60 * 1000,
-                                )
-                              }}
-                            >
-                              1d
-                            </button>
-                            <button
-                              className="suggestion-hide-option"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                hideSuggestionForDuration(
-                                  item.node.id,
-                                  7 * 24 * 60 * 60 * 1000,
-                                )
-                              }}
-                            >
-                              1w
-                            </button>
-                          </div>
-                          <div className="suggestion-hide-row suggestion-hide-day-row">
-                            <input
-                              className="suggestion-hide-input"
-                              type="date"
-                              value={hideUntilDate}
-                              onChange={(event) =>
-                                setHideUntilDate(event.target.value)
-                              }
-                            />
-                            <button
-                              className="suggestion-hide-apply"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                hideSuggestionUntilDate(item.node.id)
-                              }}
-                            >
-                              Hide until day
-                            </button>
-                          </div>
-                          <div className="suggestion-hide-row suggestion-hide-task-row">
-                            <HideUntilTaskPicker
-                              tree={tree}
-                              excludeId={item.node.id}
-                              onApply={(taskId) =>
-                                hideSuggestionUntilTask(item.node.id, taskId)
-                              }
-                            />
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </article>
                 )
@@ -493,6 +493,76 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
             </div>
           </section>
         )}
+
+        {hideMenuId && hideMenuPosition
+          ? createPortal(
+              <div
+                className="suggestion-hide-menu"
+                style={hideMenuPosition}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="suggestion-hide-row">
+                  <button
+                    className="suggestion-hide-option"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      hideSuggestionForDuration(hideMenuId, 60 * 60 * 1000)
+                    }}
+                  >
+                    1h
+                  </button>
+                  <button
+                    className="suggestion-hide-option"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      hideSuggestionForDuration(hideMenuId, 24 * 60 * 60 * 1000)
+                    }}
+                  >
+                    1d
+                  </button>
+                  <button
+                    className="suggestion-hide-option"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      hideSuggestionForDuration(
+                        hideMenuId,
+                        7 * 24 * 60 * 60 * 1000,
+                      )
+                    }}
+                  >
+                    1w
+                  </button>
+                </div>
+                <div className="suggestion-hide-row suggestion-hide-day-row">
+                  <input
+                    className="suggestion-hide-input"
+                    type="date"
+                    value={hideUntilDate}
+                    onChange={(event) => setHideUntilDate(event.target.value)}
+                  />
+                  <button
+                    className="suggestion-hide-apply"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      hideSuggestionUntilDate(hideMenuId)
+                    }}
+                  >
+                    Hide until day
+                  </button>
+                </div>
+                <div className="suggestion-hide-row suggestion-hide-task-row">
+                  <HideUntilTaskPicker
+                    tree={tree}
+                    excludeId={hideMenuId}
+                    onApply={(taskId) =>
+                      hideSuggestionUntilTask(hideMenuId, taskId)
+                    }
+                  />
+                </div>
+              </div>,
+              document.body,
+            )
+          : null}
 
         {view === 'tree' && zoom.length > 0 && (
           <nav className="breadcrumbs">
