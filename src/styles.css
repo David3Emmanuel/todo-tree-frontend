@@ -1063,7 +1063,11 @@ body,
   border-radius: 0.9rem;
   border: 0.0625rem solid #2a2623;
   background:
-    radial-gradient(circle at 84% -22%, rgba(207, 125, 60, 0.05), transparent 52%),
+    radial-gradient(
+      circle at 84% -22%,
+      rgba(207, 125, 60, 0.05),
+      transparent 52%
+    ),
     linear-gradient(180deg, rgba(18, 17, 16, 0.98), rgba(14, 13, 12, 0.98));
   display: flex;
   flex-direction: column;
@@ -1099,7 +1103,10 @@ body,
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background-color 0.15s;
 }
 
 .focus-close-btn:hover {
@@ -1118,7 +1125,11 @@ body,
   padding: 0.625rem 0.75rem 0.7rem;
   border: 0.0625rem solid #2a2522;
   border-radius: 0.6rem;
-  background: linear-gradient(180deg, rgba(28, 24, 20, 0.85), rgba(21, 19, 17, 0.78));
+  background: linear-gradient(
+    180deg,
+    rgba(28, 24, 20, 0.85),
+    rgba(21, 19, 17, 0.78)
+  );
 }
 
 .focus-pomodoro-row {
