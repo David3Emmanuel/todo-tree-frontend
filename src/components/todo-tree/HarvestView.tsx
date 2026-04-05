@@ -1,96 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Check, FolderTree, Minus, Wheat, WheatOff } from 'lucide-react'
+import { Check, FolderTree, Wheat, WheatOff } from 'lucide-react'
 import { useTodoCtx } from './todo-context'
-import {
-  findNode,
-  getAllStarred,
-  getProgress,
-  toggleTree,
-  upd,
-} from './tree-utils'
-import type { TreeNode } from './types'
+import { getAllStarred, getProgress, toggleTree, upd } from './tree-utils'
 import { HarvestFocusModal } from './HarvestFocusModal'
+import { useFocus } from './useFocus'
 
 export function HarvestView() {
   const { tree, setTree } = useTodoCtx()
   const items = getAllStarred(tree)
-  const [focusRootId, setFocusRootId] = useState<string | null>(null)
-  const focusRoot = useMemo(
-    () => (focusRootId ? findNode(tree, focusRootId) : null),
-    [tree, focusRootId],
-  )
-
-  useEffect(() => {
-    if (!focusRootId) {
-      return
-    }
-
-    if (!focusRoot) {
-      setFocusRootId(null)
-    }
-  }, [focusRoot, focusRootId])
-
-  useEffect(() => {
-    if (!focusRoot) {
-      return
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setFocusRootId(null)
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [focusRoot])
-
-  const renderFocusNode = (node: TreeNode, depth = 0) => {
-    const isFolder = node.kind === 'folder'
-    const { done, total } = getProgress(node)
-    const allDone = !isFolder && total > 0 && done === total
-    const someDone = !isFolder && !allDone && done > 0
-
-    return (
-      <div key={node.id} className="focus-node-wrap">
-        <div className="focus-node" style={{ paddingLeft: `${depth * 18}px` }}>
-          <button
-            className={`check${isFolder ? ' folder' : ''}${allDone ? ' done' : someDone ? ' part' : ''}`}
-            onClick={() =>
-              !isFolder && setTree((prev) => toggleTree(prev, node.id))
-            }
-            disabled={isFolder}
-            title={isFolder ? 'Category (not completable)' : undefined}
-          >
-            {isFolder ? (
-              <FolderTree className="icon-xs" aria-hidden="true" />
-            ) : allDone ? (
-              <Check className="icon-xs" aria-hidden="true" />
-            ) : someDone ? (
-              <Minus className="icon-xs" aria-hidden="true" />
-            ) : null}
-          </button>
-          <div className="focus-node-text-wrap">
-            <div
-              className={`focus-node-text${isFolder ? ' folder' : ''}${allDone ? ' done' : ''}`}
-            >
-              {node.text || 'Untitled task'}
-            </div>
-            {node.children.length > 0 && (
-              <div className="focus-node-meta">
-                {done}/{total} complete
-              </div>
-            )}
-          </div>
-        </div>
-        {node.children.length > 0 && (
-          <div>
-            {node.children.map((child) => renderFocusNode(child, depth + 1))}
-          </div>
-        )}
-      </div>
-    )
-  }
+  const { focusRoot, openFocus, closeFocus, renderFocusNode } = useFocus({
+    tree,
+    setTree,
+  })
 
   if (!items.length) {
     return (
@@ -118,7 +38,7 @@ export function HarvestView() {
           <div
             key={item.id}
             className="h-item can-focus"
-            onClick={() => setFocusRootId(item.id)}
+            onClick={() => openFocus(item.id)}
             role="button"
             tabIndex={0}
             onKeyDown={(event) => {
@@ -127,7 +47,7 @@ export function HarvestView() {
                 !event.defaultPrevented
               ) {
                 event.preventDefault()
-                setFocusRootId(item.id)
+                openFocus(item.id)
               }
             }}
             title="Open harvest subtree"
@@ -188,10 +108,7 @@ export function HarvestView() {
       })}
 
       {focusRoot && (
-        <HarvestFocusModal
-          focusRoot={focusRoot}
-          onClose={() => setFocusRootId(null)}
-        >
+        <HarvestFocusModal focusRoot={focusRoot} onClose={closeFocus}>
           {renderFocusNode(focusRoot)}
         </HarvestFocusModal>
       )}

@@ -7,7 +7,6 @@ import {
   type CSSProperties,
 } from 'react'
 import {
-  Check,
   ChevronRight,
   ChevronsDown,
   ChevronsUp,
@@ -15,10 +14,10 @@ import {
   FolderTree,
   LogIn,
   LogOut,
-  Minus,
   Plus,
   Undo2,
   Wheat,
+  X,
 } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from '@tanstack/react-router'
@@ -35,6 +34,7 @@ import { HarvestView } from './HarvestView'
 import { HideUntilTaskPicker } from './HideUntilTaskPicker'
 import { TodoCtx } from './todo-context'
 import { TodoNode } from './TodoNode'
+import { useFocus } from './useFocus'
 import { usePersistence } from './usePersistence'
 import { useZoomSync } from './useZoomSync'
 import type {
@@ -48,10 +48,8 @@ import {
   expandAll,
   findNode,
   getAllStarred,
-  getProgress,
   getNextActionSuggestions,
   makeNode,
-  toggleTree,
   upd,
 } from './tree-utils'
 
@@ -139,7 +137,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [hideMenuId, setHideMenuId] = useState<string | null>(null)
   const [hideUntilDate, setHideUntilDate] = useState('')
-  const [focusRootId, setFocusRootId] = useState<string | null>(null)
   const [hideMenuPosition, setHideMenuPosition] =
     useState<CSSProperties | null>(null)
   const [pendingSuggestionHides, setPendingSuggestionHides] = useState<
@@ -159,6 +156,10 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const guestReminderDismissedAtRef = useRef<number | null>(null)
   const guestReminderEditCountRef = useRef(0)
   const guestReminderLastFingerprintRef = useRef<string>('')
+  const { focusRoot, openFocus, closeFocus, renderFocusNode } = useFocus({
+    tree,
+    setTree,
+  })
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -194,36 +195,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     setIsConflictModalDismissed(false)
     setConflictResolutionError(null)
   }, [loginReconcileConflict])
-
-  const focusRoot = useMemo(
-    () => (focusRootId ? findNode(tree, focusRootId) : null),
-    [tree, focusRootId],
-  )
-
-  useEffect(() => {
-    if (!focusRootId) {
-      return
-    }
-
-    if (!focusRoot) {
-      setFocusRootId(null)
-    }
-  }, [focusRoot, focusRootId])
-
-  useEffect(() => {
-    if (!focusRoot) {
-      return
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setFocusRootId(null)
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [focusRoot])
 
   useLayoutEffect(() => {
     const updateMenuPosition = (): void => {
@@ -493,7 +464,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const focusSuggestion = (path: Breadcrumb[], nodeId: string) => {
     void path
     setHideMenuId(null)
-    setFocusRootId(nodeId)
+    openFocus(nodeId)
   }
 
   const clearPendingSuggestionHide = (nodeId: string) => {
@@ -553,53 +524,6 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
 
   const undoSuggestionHide = (nodeId: string) => {
     clearPendingSuggestionHide(nodeId)
-  }
-
-  const renderFocusNode = (node: TreeNode, depth = 0) => {
-    const isFolder = node.kind === 'folder'
-    const { done, total } = getProgress(node)
-    const allDone = !isFolder && total > 0 && done === total
-    const someDone = !isFolder && !allDone && done > 0
-
-    return (
-      <div key={node.id} className="focus-node-wrap">
-        <div className="focus-node" style={{ paddingLeft: `${depth * 18}px` }}>
-          <button
-            className={`check${isFolder ? ' folder' : ''}${allDone ? ' done' : someDone ? ' part' : ''}`}
-            onClick={() =>
-              !isFolder && setTree((prev) => toggleTree(prev, node.id))
-            }
-            disabled={isFolder}
-            title={isFolder ? 'Category (not completable)' : undefined}
-          >
-            {isFolder ? (
-              <FolderTree className="icon-xs" aria-hidden="true" />
-            ) : allDone ? (
-              <Check className="icon-xs" aria-hidden="true" />
-            ) : someDone ? (
-              <Minus className="icon-xs" aria-hidden="true" />
-            ) : null}
-          </button>
-          <div className="focus-node-text-wrap">
-            <div
-              className={`focus-node-text${isFolder ? ' folder' : ''}${allDone ? ' done' : ''}`}
-            >
-              {node.text || 'Untitled task'}
-            </div>
-            {node.children.length > 0 && (
-              <div className="focus-node-meta">
-                {done}/{total} complete
-              </div>
-            )}
-          </div>
-        </div>
-        {node.children.length > 0 && (
-          <div>
-            {node.children.map((child) => renderFocusNode(child, depth + 1))}
-          </div>
-        )}
-      </div>
-    )
   }
 
   const hideSuggestion = (nodeId: string, until: number) => {
@@ -1052,10 +976,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
             </div>
 
             {focusRoot && (
-              <HarvestFocusModal
-                focusRoot={focusRoot}
-                onClose={() => setFocusRootId(null)}
-              >
+              <HarvestFocusModal focusRoot={focusRoot} onClose={closeFocus}>
                 {renderFocusNode(focusRoot)}
               </HarvestFocusModal>
             )}
