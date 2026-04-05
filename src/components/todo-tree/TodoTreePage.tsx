@@ -443,6 +443,26 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const displayNodes = zoomedNode ? zoomedNode.children : tree
   const starred = getAllStarred(tree)
 
+  const findBreadcrumbPath = (
+    nodes: TreeNode[],
+    targetId: string,
+    path: Breadcrumb[] = [],
+  ): Breadcrumb[] | null => {
+    for (const candidate of nodes) {
+      const nextPath = [...path, { id: candidate.id, text: candidate.text }]
+      if (candidate.id === targetId) {
+        return nextPath
+      }
+
+      const found = findBreadcrumbPath(candidate.children, targetId, nextPath)
+      if (found) {
+        return found
+      }
+    }
+
+    return null
+  }
+
   const addRoot = () => {
     setTree((prev) => {
       const node = makeNode(prev)
@@ -463,6 +483,20 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     void path
     setHideMenuId(null)
     openFocus(nodeId)
+  }
+
+  const closeFocusAndZoomToRoot = () => {
+    if (!focusRoot) {
+      closeFocus()
+      return
+    }
+
+    const nextZoom = findBreadcrumbPath(tree, focusRoot.id)
+    if (nextZoom) {
+      setZoomFromUi(nextZoom)
+    }
+
+    closeFocus()
   }
 
   const clearPendingSuggestionHide = (nodeId: string) => {
@@ -969,7 +1003,11 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
 
             {focusRoot && (
               <HarvestFocusModal focusRoot={focusRoot} onClose={closeFocus}>
-                <FocusNode node={focusRoot} setTree={setTree} />
+                <FocusNode
+                  node={focusRoot}
+                  setTree={setTree}
+                  onActivate={closeFocusAndZoomToRoot}
+                />
               </HarvestFocusModal>
             )}
 

@@ -7,9 +7,15 @@ type FocusNodeProps = {
   node: TreeNode
   depth?: number
   setTree: Dispatch<SetStateAction<TreeNode[]>>
+  onActivate?: () => void
 }
 
-export function FocusNode({ node, depth = 0, setTree }: FocusNodeProps) {
+export function FocusNode({
+  node,
+  depth = 0,
+  setTree,
+  onActivate,
+}: FocusNodeProps) {
   const isFolder = node.kind === 'folder'
   const { done, total } = getProgress(node)
   const allDone = !isFolder && total > 0 && done === total
@@ -17,23 +23,29 @@ export function FocusNode({ node, depth = 0, setTree }: FocusNodeProps) {
 
   return (
     <div key={node.id} className="focus-node-wrap">
-      <div className="focus-node" style={{ paddingLeft: `${depth * 18}px` }}>
-        <button
-          className={`check${isFolder ? ' folder' : ''}${allDone ? ' done' : someDone ? ' part' : ''}`}
-          onClick={() =>
-            !isFolder && setTree((prev) => toggleTree(prev, node.id))
-          }
-          disabled={isFolder}
-          title={isFolder ? 'Category (not completable)' : undefined}
-        >
-          {isFolder ? (
-            <FolderTree className="icon-xs" aria-hidden="true" />
-          ) : allDone ? (
-            <Check className="icon-xs" aria-hidden="true" />
-          ) : someDone ? (
-            <Minus className="icon-xs" aria-hidden="true" />
-          ) : null}
-        </button>
+      <div
+        className="focus-node"
+        style={{ paddingLeft: `${depth * 18}px` }}
+        onClick={() => onActivate?.()}
+      >
+        <div onClick={(event) => event.stopPropagation()}>
+          <button
+            className={`check${isFolder ? ' folder' : ''}${allDone ? ' done' : someDone ? ' part' : ''}`}
+            onClick={() =>
+              !isFolder && setTree((prev) => toggleTree(prev, node.id))
+            }
+            disabled={isFolder}
+            title={isFolder ? 'Category (not completable)' : undefined}
+          >
+            {isFolder ? (
+              <FolderTree className="icon-xs" aria-hidden="true" />
+            ) : allDone ? (
+              <Check className="icon-xs" aria-hidden="true" />
+            ) : someDone ? (
+              <Minus className="icon-xs" aria-hidden="true" />
+            ) : null}
+          </button>
+        </div>
         <div className="focus-node-text-wrap">
           <div
             className={`focus-node-text${isFolder ? ' folder' : ''}${allDone ? ' done' : ''}`}
@@ -55,6 +67,7 @@ export function FocusNode({ node, depth = 0, setTree }: FocusNodeProps) {
               node={child}
               depth={depth + 1}
               setTree={setTree}
+              onActivate={onActivate}
             />
           ))}
         </div>
