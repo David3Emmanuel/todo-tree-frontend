@@ -524,7 +524,11 @@ body,
   border-radius: 0.95rem;
   border: 0.0625rem solid #32261b;
   background:
-    radial-gradient(circle at top right, rgba(207, 125, 60, 0.13), transparent 50%),
+    radial-gradient(
+      circle at top right,
+      rgba(207, 125, 60, 0.13),
+      transparent 50%
+    ),
     linear-gradient(165deg, rgba(24, 18, 14, 0.97), rgba(14, 12, 10, 0.99));
   padding: 0.9rem;
   display: flex;
@@ -1407,6 +1411,13 @@ body,
   transition: opacity 0.15s;
   flex-shrink: 0;
 }
+
+@media (hover: none), (pointer: coarse) {
+  .actions {
+    opacity: 1;
+  }
+}
+
 .act {
   background: none;
   border: none;
