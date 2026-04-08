@@ -4,11 +4,46 @@ import { getAllStarred, getProgress, toggleTree, upd } from './tree-utils'
 import { HarvestFocusModal } from './HarvestFocusModal'
 import { useFocus } from './useFocus'
 import { FocusNode } from './FocusNode'
+import type { Breadcrumb } from './types'
+
+function findBreadcrumbPath(
+  nodes: Parameters<typeof getAllStarred>[0],
+  targetId: string,
+  path: Breadcrumb[] = [],
+): Breadcrumb[] | null {
+  for (const candidate of nodes) {
+    const nextPath = [...path, { id: candidate.id, text: candidate.text }]
+    if (candidate.id === targetId) {
+      return nextPath
+    }
+
+    const found = findBreadcrumbPath(candidate.children, targetId, nextPath)
+    if (found) {
+      return found
+    }
+  }
+
+  return null
+}
 
 export function HarvestView() {
-  const { tree, setTree } = useTodoCtx()
+  const { tree, setTree, setZoom } = useTodoCtx()
   const items = getAllStarred(tree)
   const { focusRoot, openFocus, closeFocus } = useFocus({ tree })
+
+  const closeFocusAndZoomToRoot = () => {
+    if (!focusRoot) {
+      closeFocus()
+      return
+    }
+
+    const nextZoom = findBreadcrumbPath(tree, focusRoot.id)
+    if (nextZoom) {
+      setZoom(nextZoom)
+    }
+
+    closeFocus()
+  }
 
   if (!items.length) {
     return (
@@ -107,7 +142,11 @@ export function HarvestView() {
 
       {focusRoot && (
         <HarvestFocusModal focusRoot={focusRoot} onClose={closeFocus}>
-          <FocusNode node={focusRoot} setTree={setTree} />
+          <FocusNode
+            node={focusRoot}
+            setTree={setTree}
+            onActivate={closeFocusAndZoomToRoot}
+          />
         </HarvestFocusModal>
       )}
     </div>
