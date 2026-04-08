@@ -675,7 +675,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                   title="Expand all nodes"
                 >
                   <ChevronsDown className="icon-xs" aria-hidden="true" />
-                  Expand
+                  <span className="tab-text">Expand</span>
                 </button>
                 <button
                   className="tab"
@@ -683,7 +683,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                   title="Collapse all nodes"
                 >
                   <ChevronsUp className="icon-xs" aria-hidden="true" />
-                  Collapse
+                  <span className="tab-text">Collapse</span>
                 </button>
               </>
             )}

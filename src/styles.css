@@ -674,6 +674,16 @@ body,
   }
 }
 
+@media (max-width: 480px) {
+  .tab-text {
+    display: none;
+  }
+
+  .tab {
+    padding: 0.375rem 0.625rem;
+  }
+}
+
 @media (max-width: 380px) {
   .brand-sub {
     display: none;
@@ -1118,6 +1128,20 @@ body,
   .suggestions {
     margin-inline: 0.8125rem;
     padding: 0.75rem;
+  }
+
+  .suggestions-grid {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.375rem;
+  }
+
+  .suggestion-card {
+    flex: 0 0 min(15rem, 78vw);
+    scroll-snap-align: start;
   }
 }
 
