@@ -71,7 +71,7 @@ export function TodoNode({
       setMenuStyle({
         position: 'fixed',
         top: `${rect.bottom + 4}px`,
-        left: `${rect.left}px`,
+        right: `${window.innerWidth - rect.right}px`,
         zIndex: 9999,
       })
     }
