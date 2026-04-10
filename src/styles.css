@@ -643,10 +643,6 @@ body,
     border-radius: 0.625rem;
   }
 
-  .tree-search-input,
-  .tree-search-input:focus {
-    width: 100%;
-  }
 
   .tab {
     flex: 1;
@@ -1940,7 +1936,8 @@ body,
 }
 
 .tree-search-input {
-  width: 9rem;
+  flex: 1;
+  min-width: 0;
   border: 0.0625rem solid #2a2623;
   background: #181716;
   color: #e6dfd6;
@@ -1949,12 +1946,11 @@ body,
   font-size: 0.675rem;
   padding: 0.3125rem 0.625rem;
   outline: none;
-  transition: border-color 0.15s, width 0.2s;
+  transition: border-color 0.15s;
 }
 
 .tree-search-input:focus {
   border-color: #3d3633;
-  width: 12rem;
 }
 
 .tree-search-input::placeholder {
