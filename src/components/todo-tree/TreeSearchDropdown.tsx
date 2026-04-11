@@ -6,7 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
-import { createPortal } from 'react-dom'
+import { Portal } from './Portal'
 import type { Breadcrumb, TreeNode } from './types'
 
 const PANEL_WIDTH = 280
@@ -103,46 +103,44 @@ export function TreeSearchDropdown({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isOpen])
 
-  const panel =
-    isOpen && panelStyle
-      ? createPortal(
-          <div
-            className="tree-search-panel"
-            data-tree-search-panel="true"
-            style={panelStyle}
-            onMouseDown={(e) => e.preventDefault()}
-          >
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt) => {
-                const parentPath = opt.path
-                  .slice(0, -1)
-                  .map((c) => c.text || 'Untitled')
-                  .join(' › ')
-                return (
-                  <button
-                    key={opt.node.id}
-                    className={`tree-search-option${selectedId === opt.node.id ? ' selected' : ''}`}
-                    type="button"
-                    onClick={() => confirmOption(opt)}
-                    role="option"
-                    aria-selected={selectedId === opt.node.id}
-                  >
-                    <span className="tree-search-option-main">
-                      {opt.node.text || 'Untitled'}
-                    </span>
-                    <span className="tree-search-option-meta">
-                      {parentPath || 'Root level'}
-                    </span>
-                  </button>
-                )
-              })
-            ) : (
-              <div className="tree-search-empty">No tasks match.</div>
-            )}
-          </div>,
-          document.body,
-        )
-      : null
+  const panel = (
+    <Portal open={isOpen && !!panelStyle}>
+      <div
+        className="tree-search-panel"
+        data-tree-search-panel="true"
+        style={panelStyle ?? undefined}
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((opt) => {
+            const parentPath = opt.path
+              .slice(0, -1)
+              .map((c) => c.text || 'Untitled')
+              .join(' › ')
+            return (
+              <button
+                key={opt.node.id}
+                className={`tree-search-option${selectedId === opt.node.id ? ' selected' : ''}`}
+                type="button"
+                onClick={() => confirmOption(opt)}
+                role="option"
+                aria-selected={selectedId === opt.node.id}
+              >
+                <span className="tree-search-option-main">
+                  {opt.node.text || 'Untitled'}
+                </span>
+                <span className="tree-search-option-meta">
+                  {parentPath || 'Root level'}
+                </span>
+              </button>
+            )
+          })
+        ) : (
+          <div className="tree-search-empty">No tasks match.</div>
+        )}
+      </div>
+    </Portal>
+  )
 
   return (
     <>

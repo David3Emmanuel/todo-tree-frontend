@@ -5,7 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
-import { createPortal } from 'react-dom'
+import { Portal } from './Portal'
 import type { TreeNode } from './types'
 
 type BlockerTaskOption = {
@@ -109,55 +109,54 @@ export function HideUntilTaskPicker({
     }
   }, [focused])
 
-  const floatingList = panelStyle
-    ? createPortal(
-        <div
-          className="suggestion-task-list suggestion-task-list-floating"
-          data-suggestion-picker-portal="true"
-          role="listbox"
-          style={panelStyle}
-        >
-          {filteredOptions.length > 0 ? (
-            filteredOptions.map((option) => {
-              const isSelected = option.id === selectedTaskId
+  const floatingList = (
+    <Portal open={!!panelStyle}>
+      <div
+        className="suggestion-task-list suggestion-task-list-floating"
+        data-suggestion-picker-portal="true"
+        role="listbox"
+        style={panelStyle ?? undefined}
+      >
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((option) => {
+            const isSelected = option.id === selectedTaskId
 
-              return (
-                <button
-                  key={option.id}
-                  className={`suggestion-task-option${isSelected ? ' selected' : ''}`}
-                  type="button"
-                  onMouseDown={(event) => {
-                    event.preventDefault()
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    setSelectedTaskId(option.id)
-                    setQuery(option.text)
-                  }}
-                  title={option.pathLabel}
-                  role="option"
-                  aria-selected={isSelected}
-                >
-                  <span className="suggestion-task-option-main">
-                    {option.text}
-                  </span>
-                  <span className="suggestion-task-option-meta">
-                    {option.completed ? 'done' : 'open'}
-                    {' · '}
-                    {option.pathLabel}
-                  </span>
-                </button>
-              )
-            })
-          ) : (
-            <div className="suggestion-task-empty">
-              No blocker tasks match that search.
-            </div>
-          )}
-        </div>,
-        document.body,
-      )
-    : null
+            return (
+              <button
+                key={option.id}
+                className={`suggestion-task-option${isSelected ? ' selected' : ''}`}
+                type="button"
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setSelectedTaskId(option.id)
+                  setQuery(option.text)
+                }}
+                title={option.pathLabel}
+                role="option"
+                aria-selected={isSelected}
+              >
+                <span className="suggestion-task-option-main">
+                  {option.text}
+                </span>
+                <span className="suggestion-task-option-meta">
+                  {option.completed ? 'done' : 'open'}
+                  {' · '}
+                  {option.pathLabel}
+                </span>
+              </button>
+            )
+          })
+        ) : (
+          <div className="suggestion-task-empty">
+            No blocker tasks match that search.
+          </div>
+        )}
+      </div>
+    </Portal>
+  )
   return (
     <div className="suggestion-task-picker">
       <div className="suggestion-task-field" ref={fieldRef}>

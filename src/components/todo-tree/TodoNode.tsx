@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
+import { Portal } from './Portal'
 import {
   Check,
   ChevronRight,
@@ -418,18 +418,17 @@ export function TodoNode({
         </div>
       )}
 
-      {menuOpen &&
-        createPortal(
-          <>
-            <div
-              className="node-menu-backdrop"
-              onClick={() => setMenuOpen(false)}
-            />
-            <div
-              className="node-menu"
-              style={menuStyle}
-              onClick={(e) => e.stopPropagation()}
-            >
+      <Portal open={menuOpen}>
+        <>
+          <div
+            className="node-menu-backdrop"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div
+            className="node-menu"
+            style={menuStyle}
+            onClick={(e) => e.stopPropagation()}
+          >
               <button
                 className="node-menu-item"
                 onClick={() => {
@@ -528,9 +527,8 @@ export function TodoNode({
                 Delete
               </button>
             </div>
-          </>,
-          document.body,
-        )}
+        </>
+      </Portal>
     </>
   )
 }

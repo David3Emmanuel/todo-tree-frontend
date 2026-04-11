@@ -19,7 +19,7 @@ import {
   Wheat,
   X,
 } from 'lucide-react'
-import { createPortal } from 'react-dom'
+import { Portal } from './Portal'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import {
   readParsedFromStorage,
@@ -888,13 +888,12 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
           </section>
         )}
 
-        {hideMenuId && hideMenuPosition
-          ? createPortal(
-              <div
-                className="suggestion-hide-menu"
-                style={hideMenuPosition}
-                onClick={(event) => event.stopPropagation()}
-              >
+        {hideMenuId && hideMenuPosition && <Portal>
+          <div
+            className="suggestion-hide-menu"
+            style={hideMenuPosition}
+            onClick={(event) => event.stopPropagation()}
+          >
                 <div className="suggestion-hide-row">
                   <button
                     className="suggestion-hide-option"
@@ -953,10 +952,8 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                     }
                   />
                 </div>
-              </div>,
-              document.body,
-            )
-          : null}
+              </div>
+          </Portal>}
 
         {view === 'tree' && zoom.length > 0 && (
           <nav className="breadcrumbs">
