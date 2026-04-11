@@ -678,7 +678,7 @@ body,
     padding: 0.0625rem 0.2rem;
     min-width: 0.75rem;
     border-radius: 0;
-    transform: skewX(10deg);
+    transform: skewX(-10deg);
     margin-right: -3px;
   }
 
