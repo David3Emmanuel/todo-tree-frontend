@@ -357,7 +357,7 @@ export function getNextActionSuggestions(
 
   while (pool.length > 0 && picks.length < limit) {
     const lowestScore = Math.min(...pool.map((item) => item.score))
-    const weights = pool.map((item) => item.score - lowestScore + 1)
+    const weights = pool.map((item) => (item.score - lowestScore + 1) ** 1.5)
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
 
     let roll = rng() * totalWeight
