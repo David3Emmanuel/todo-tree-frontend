@@ -14,6 +14,7 @@ import {
   FolderTree,
   LogIn,
   LogOut,
+  Menu,
   Plus,
   Undo2,
   Wheat,
@@ -29,6 +30,7 @@ import {
 import { useAuth } from '../auth/auth-context'
 import { BrandHeader } from '../layout/BrandHeader'
 import { LoadingScreen } from '../layout/LoadingScreen'
+import { MainMenu } from '../layout/MainMenu'
 import { HarvestFocusModal } from './HarvestFocusModal'
 import { HarvestView } from './HarvestView'
 import { FocusNode } from './FocusNode'
@@ -136,6 +138,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     resolveLoginReconcileConflict,
     suggestionTick,
   } = usePersistence(isAuthenticated, jwt)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [hideMenuId, setHideMenuId] = useState<string | null>(null)
   const [hideUntilDate, setHideUntilDate] = useState('')
@@ -714,7 +717,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
               )}
               {isAuthenticated ? (
                 <button
-                  className="tab"
+                  className="tab hide-mobile"
                   onClick={() => {
                     logout()
                     if (typeof window !== 'undefined') {
@@ -726,11 +729,19 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
                   <span className="tab-text">Logout</span>
                 </button>
               ) : (
-                <a className="tab" href="/auth">
+                <a className="tab hide-mobile" href="/auth">
                   <LogIn className="icon-xs" aria-hidden="true" />
                   <span className="tab-text">Login</span>
                 </a>
               )}
+              <button
+                className="tab"
+                onClick={() => setMenuOpen(true)}
+                title="Menu"
+                aria-label="Open menu"
+              >
+                <Menu className="icon-xs" aria-hidden="true" />
+              </button>
             </div>
           </div>
           <div className="header-search">
@@ -1110,6 +1121,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
           </>
         )}
       </div>
+      <MainMenu open={menuOpen} onClose={() => setMenuOpen(false)} nodes={tree} />
     </TodoCtx.Provider>
   )
 }

@@ -203,7 +203,123 @@ pre code {
   display: flex;
   justify-content: flex-end;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid #36312d;
+}
+
+.main-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+}
+
+.main-menu-section {
+  border: 1px solid #36312d;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.main-menu-section-title {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8d8681;
+}
+
+/* Account row */
+.menu-account-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.menu-account-avatar {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  background: #cf7d3c;
+  color: #0f0e0d;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.menu-account-avatar--guest {
+  background: #1e1c1a;
+  color: #8d8681;
+}
+
+.menu-account-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.menu-account-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #d8cfc4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-account-email {
+  font-size: 0.6rem;
+  color: #8d8681;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-account-logout {
+  flex-shrink: 0;
+}
+
+/* Stats grid */
+.menu-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.menu-stat-chip {
+  background: #171513;
+  border: 1px solid #36312d;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.menu-stat-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #d8cfc4;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.menu-stat-value--today   { color: #e8614a; }
+.menu-stat-value--soon    { color: #e8c547; }
+.menu-stat-value--starred { color: #cf7d3c; }
+
+.menu-stat-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8d8681;
 }
 
 /* Desktop: sidebar from the right */
@@ -214,7 +330,7 @@ pre code {
     right: 0;
     bottom: 0;
     width: min(1080px, calc(50vw - 1rem));
-    border-left: 1px solid var(--line);
+    border-left: 1px solid #36312d;
   }
 }
 
@@ -324,6 +440,12 @@ a {
 @media (max-width: 640px) {
   .nav-link::after {
     bottom: -4px;
+  }
+}
+
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
   }
 }
 
