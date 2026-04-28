@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect } from 'react'
-import { X, User, LogIn, LogOut } from 'lucide-react'
+import { X, User, LogIn, LogOut, RefreshCw } from 'lucide-react'
+import type { SyncStatus } from '../todo-tree/usePersistence'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuth } from '../auth/auth-context'
 import type { TreeNode } from '../todo-tree/types'
@@ -12,9 +13,11 @@ interface MainMenuProps {
   children?: ReactNode
   nodes: TreeNode[]
   history: DaySnapshot[]
+  syncStatus?: SyncStatus
+  onSync?: () => void
 }
 
-export function MainMenu({ open, onClose, children, history }: MainMenuProps) {
+export function MainMenu({ open, onClose, children, history, syncStatus, onSync }: MainMenuProps) {
   const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -72,26 +75,41 @@ export function MainMenu({ open, onClose, children, history }: MainMenuProps) {
           <section className="main-menu-section">
             <div className="main-menu-section-title">Account</div>
             {isAuthenticated && user ? (
-              <div className="menu-account-row">
-                <div className="menu-account-avatar" aria-hidden="true">
-                  {user.username ? user.username[0].toUpperCase() : user.email[0].toUpperCase()}
+              <>
+                <div className="menu-account-row">
+                  <div className="menu-account-avatar" aria-hidden="true">
+                    {user.username ? user.username[0].toUpperCase() : user.email[0].toUpperCase()}
+                  </div>
+                  <div className="menu-account-info">
+                    {user.username && <div className="menu-account-name">{user.username}</div>}
+                    <div className="menu-account-email">{user.email}</div>
+                  </div>
+                  <button
+                    className="menu-account-logout focus-close-btn"
+                    onClick={() => {
+                      logout()
+                      void navigate({ to: '/auth' })
+                    }}
+                    title="Sign out"
+                    aria-label="Sign out"
+                  >
+                    <LogOut className="icon-sm" aria-hidden="true" />
+                  </button>
                 </div>
-                <div className="menu-account-info">
-                  {user.username && <div className="menu-account-name">{user.username}</div>}
-                  <div className="menu-account-email">{user.email}</div>
-                </div>
-                <button
-                  className="menu-account-logout focus-close-btn"
-                  onClick={() => {
-                    logout()
-                    void navigate({ to: '/auth' })
-                  }}
-                  title="Sign out"
-                  aria-label="Sign out"
-                >
-                  <LogOut className="icon-sm" aria-hidden="true" />
-                </button>
-              </div>
+                {onSync && (
+                  <button
+                    className={`menu-sync-btn${syncStatus === 'success' ? ' menu-sync-btn--success' : syncStatus === 'error' ? ' menu-sync-btn--error' : ''}`}
+                    onClick={onSync}
+                    disabled={syncStatus === 'syncing'}
+                  >
+                    <RefreshCw className={`icon-sm${syncStatus === 'syncing' ? ' menu-sync-spin' : ''}`} aria-hidden="true" />
+                    {syncStatus === 'syncing' ? 'Syncing…'
+                      : syncStatus === 'success' ? 'Synced'
+                      : syncStatus === 'error' ? 'Sync failed'
+                      : 'Sync now'}
+                  </button>
+                )}
+              </>
             ) : (
               <div className="menu-account-row menu-account-row--guest">
                 <div className="menu-account-avatar menu-account-avatar--guest" aria-hidden="true">

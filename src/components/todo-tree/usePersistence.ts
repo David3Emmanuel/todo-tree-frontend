@@ -138,6 +138,8 @@ function classifyLoginReconcileState(
   return 'divergence-conflict'
 }
 
+export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error'
+
 export type UsePersistenceResult = {
   isReady: boolean
   tree: TreeNode[]
@@ -155,6 +157,8 @@ export type UsePersistenceResult = {
   ) => Promise<void>
   suggestionTick: number
   setSuggestionTick: Dispatch<SetStateAction<number>>
+  syncStatus: SyncStatus
+  triggerManualSync: () => void
 }
 
 export function usePersistence(
@@ -170,6 +174,8 @@ export function usePersistence(
   >(undefined)
   const [suggestionHides, setSuggestionHides] = useState<SuggestionHideMap>({})
   const [suggestionTick, setSuggestionTick] = useState(() => Date.now())
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
+  const syncStatusResetRef = useRef<number | null>(null)
   const [isLoginReconciling, setIsLoginReconciling] = useState(false)
   const [hasPendingLoginRemoteSnapshot, setHasPendingLoginRemoteSnapshot] =
     useState(false)
@@ -592,6 +598,37 @@ export function usePersistence(
     return () => window.clearTimeout(timeoutId)
   }, [activeSuggestionHides])
 
+  const triggerManualSync = useCallback(() => {
+    if (!isAuthenticated || !jwt || syncStatus === 'syncing') return
+
+    setSyncStatus('syncing')
+    if (syncStatusResetRef.current !== null) {
+      window.clearTimeout(syncStatusResetRef.current)
+    }
+
+    const syncState = { tree, zoom, view, suggestionHides: activeSuggestionHides }
+
+    void (async () => {
+      try {
+        const remote = await saveRemotePersistedState(jwt, syncState)
+        if (remote) {
+          lastSyncedFingerprintRef.current = JSON.stringify(syncState)
+          if (remote.serverUpdatedAtMs > 0) {
+            setServerUpdatedAtMs(remote.serverUpdatedAtMs)
+          }
+        }
+        setSyncStatus('success')
+      } catch {
+        setSyncStatus('error')
+      } finally {
+        syncStatusResetRef.current = window.setTimeout(
+          () => setSyncStatus('idle'),
+          2500,
+        )
+      }
+    })()
+  }, [isAuthenticated, jwt, syncStatus, tree, zoom, view, activeSuggestionHides])
+
   return {
     isReady,
     tree,
@@ -607,5 +644,7 @@ export function usePersistence(
     resolveLoginReconcileConflict,
     suggestionTick,
     setSuggestionTick,
+    syncStatus,
+    triggerManualSync,
   }
 }

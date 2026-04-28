@@ -138,6 +138,8 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
     loginReconcileConflict,
     resolveLoginReconcileConflict,
     suggestionTick,
+    syncStatus,
+    triggerManualSync,
   } = usePersistence(isAuthenticated, jwt)
   const [menuOpen, setMenuOpen] = useState(false)
   const activityHistory = useActivityHistory(tree)
@@ -1156,7 +1158,7 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
           </>
         )}
       </div>
-      <MainMenu open={menuOpen} onClose={() => setMenuOpen(false)} nodes={tree} history={activityHistory} />
+      <MainMenu open={menuOpen} onClose={() => setMenuOpen(false)} nodes={tree} history={activityHistory} syncStatus={syncStatus} onSync={triggerManualSync} />
     </TodoCtx.Provider>
   )
 }

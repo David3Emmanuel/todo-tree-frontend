@@ -285,6 +285,42 @@ pre code {
   flex-shrink: 0;
 }
 
+.menu-sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  margin-top: 0.375rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  color: #a49c95;
+  background: transparent;
+  border: 1px solid #2a2725;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.menu-sync-btn:hover:not(:disabled) {
+  background: #1a1816;
+  color: #d4cec9;
+  border-color: #3d3733;
+}
+.menu-sync-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.menu-sync-btn--success {
+  color: #7bbf8a;
+  border-color: #2a3d2e;
+}
+.menu-sync-btn--error {
+  color: #c97070;
+  border-color: #3d2a2a;
+}
+.menu-sync-spin {
+  animation: spin 0.8s linear infinite;
+}
+
 /* Activity graph */
 .activity-graph {
   width: 100%;
