@@ -5,6 +5,7 @@ export type NodeDiffStatus = 'unchanged' | 'modified' | 'added'
 export type DiffedNode = {
   node: TreeNode
   status: NodeDiffStatus
+  subtreeClean: boolean // true when this node and every descendant are 'unchanged'
   children: DiffedNode[]
 }
 
@@ -40,15 +41,17 @@ export function buildDiffedTree(
   nodes: TreeNode[],
   otherFlat: Map<string, TreeNode>,
 ): DiffedNode[] {
-  return nodes.map((node) => ({
-    node,
-    status: !otherFlat.has(node.id)
+  return nodes.map((node) => {
+    const status: NodeDiffStatus = !otherFlat.has(node.id)
       ? 'added'
       : !contentEqual(node, otherFlat.get(node.id)!)
         ? 'modified'
-        : 'unchanged',
-    children: buildDiffedTree(node.children, otherFlat),
-  }))
+        : 'unchanged'
+    const children = buildDiffedTree(node.children, otherFlat)
+    const subtreeClean =
+      status === 'unchanged' && children.every((c) => c.subtreeClean)
+    return { node, status, subtreeClean, children }
+  })
 }
 
 export function computeDiffSummary(

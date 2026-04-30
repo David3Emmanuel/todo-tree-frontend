@@ -22,9 +22,16 @@ function formatTimeAgo(ms: number | undefined): string {
   return `${Math.floor(diff / 86_400_000)}d ago`
 }
 
+function countDescendants(nodes: DiffedNode[]): number {
+  let n = 0
+  for (const dn of nodes) n += 1 + countDescendants(dn.children)
+  return n
+}
+
 function DiffNodeRow({ dn, depth = 0 }: { dn: DiffedNode; depth?: number }) {
-  const { node, status, children } = dn
+  const { node, status, subtreeClean, children } = dn
   const isFolder = node.kind === 'folder'
+  const hiddenCount = subtreeClean ? countDescendants(children) : 0
 
   return (
     <>
@@ -47,10 +54,14 @@ function DiffNodeRow({ dn, depth = 0 }: { dn: DiffedNode; depth?: number }) {
             {status === 'added' ? 'new here' : 'changed'}
           </span>
         )}
+        {hiddenCount > 0 && (
+          <span className="diff-collapsed-hint">+{hiddenCount}</span>
+        )}
       </div>
-      {children.map((child) => (
-        <DiffNodeRow key={child.node.id} dn={child} depth={depth + 1} />
-      ))}
+      {!subtreeClean &&
+        children.map((child) => (
+          <DiffNodeRow key={child.node.id} dn={child} depth={depth + 1} />
+        ))}
     </>
   )
 }

@@ -1054,6 +1054,13 @@ body,
   color: #c88888;
 }
 
+.diff-collapsed-hint {
+  flex-shrink: 0;
+  font-size: 0.57rem;
+  color: #3e3a36;
+  letter-spacing: 0.02em;
+}
+
 .diff-ghost-section {
   margin-top: 0.4rem;
 }
