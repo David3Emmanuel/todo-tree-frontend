@@ -32,6 +32,7 @@ import { BrandHeader } from '../layout/BrandHeader'
 import { LoadingScreen } from '../layout/LoadingScreen'
 import { MainMenu } from '../layout/MainMenu'
 import { useActivityHistory } from './useActivityHistory'
+import { ConflictDiffModal } from './ConflictDiffModal'
 import { HarvestFocusModal } from './HarvestFocusModal'
 import { HarvestView } from './HarvestView'
 import { FocusNode } from './FocusNode'
@@ -360,7 +361,11 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
       ? findNode(tree, zoom[zoom.length - 1].id)
       : null
     const effectiveNodes = zoomedNode ? zoomedNode.children : tree
-    return getNextActionSuggestions(effectiveNodes, suggestionSeedRef.current, 24)
+    return getNextActionSuggestions(
+      effectiveNodes,
+      suggestionSeedRef.current,
+      24,
+    )
       .filter(
         (item) =>
           !isSuggestionHidden(activeSuggestionHides[item.node.id], tree, now),
@@ -491,8 +496,10 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
   const displayNodes = zoomedNode ? zoomedNode.children : tree
   const harvestSections = getHarvestSections(tree)
   const harvestCounts = {
-    starred: harvestSections.find((s) => s.priority === 'starred')?.items.length ?? 0,
-    today: harvestSections.find((s) => s.priority === 'today')?.items.length ?? 0,
+    starred:
+      harvestSections.find((s) => s.priority === 'starred')?.items.length ?? 0,
+    today:
+      harvestSections.find((s) => s.priority === 'today')?.items.length ?? 0,
     soon: harvestSections.find((s) => s.priority === 'soon')?.items.length ?? 0,
   }
 
@@ -718,16 +725,22 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
               >
                 <Wheat className="icon-xs" aria-hidden="true" />
                 Harvest{' '}
-                {(harvestCounts.starred > 0 || harvestCounts.today > 0 || harvestCounts.soon > 0) && (
+                {(harvestCounts.starred > 0 ||
+                  harvestCounts.today > 0 ||
+                  harvestCounts.soon > 0) && (
                   <span className="harvest-badges">
                     {harvestCounts.starred > 0 && (
                       <span className="badge">{harvestCounts.starred}</span>
                     )}
                     {harvestCounts.today > 0 && (
-                      <span className="badge badge--today">{harvestCounts.today}</span>
+                      <span className="badge badge--today">
+                        {harvestCounts.today}
+                      </span>
                     )}
                     {harvestCounts.soon > 0 && (
-                      <span className="badge badge--soon">{harvestCounts.soon}</span>
+                      <span className="badge badge--soon">
+                        {harvestCounts.soon}
+                      </span>
                     )}
                   </span>
                 )}
@@ -936,72 +949,74 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
           </section>
         )}
 
-        {hideMenuId && hideMenuPosition && <Portal>
-          <div
-            className="suggestion-hide-menu"
-            style={hideMenuPosition}
-            onClick={(event) => event.stopPropagation()}
-          >
-                <div className="suggestion-hide-row">
-                  <button
-                    className="suggestion-hide-option"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      hideSuggestionForDuration(hideMenuId, 60 * 60 * 1000)
-                    }}
-                  >
-                    1h
-                  </button>
-                  <button
-                    className="suggestion-hide-option"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      hideSuggestionForDuration(hideMenuId, 24 * 60 * 60 * 1000)
-                    }}
-                  >
-                    1d
-                  </button>
-                  <button
-                    className="suggestion-hide-option"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      hideSuggestionForDuration(
-                        hideMenuId,
-                        7 * 24 * 60 * 60 * 1000,
-                      )
-                    }}
-                  >
-                    1w
-                  </button>
-                </div>
-                <div className="suggestion-hide-row suggestion-hide-day-row">
-                  <input
-                    className="suggestion-hide-input"
-                    type="date"
-                    value={hideUntilDate}
-                    onChange={(event) => setHideUntilDate(event.target.value)}
-                  />
-                  <button
-                    className="suggestion-hide-apply"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      hideSuggestionUntilDate(hideMenuId)
-                    }}
-                  >
-                    Hide until day
-                  </button>
-                </div>
-                <div className="suggestion-hide-row suggestion-hide-task-row">
-                  <HideUntilTaskPicker
-                    tree={tree}
-                    excludeId={hideMenuId}
-                    onApply={(taskId) =>
-                      hideSuggestionUntilTask(hideMenuId, taskId)
-                    }
-                  />
-                </div>
+        {hideMenuId && hideMenuPosition && (
+          <Portal>
+            <div
+              className="suggestion-hide-menu"
+              style={hideMenuPosition}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="suggestion-hide-row">
+                <button
+                  className="suggestion-hide-option"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    hideSuggestionForDuration(hideMenuId, 60 * 60 * 1000)
+                  }}
+                >
+                  1h
+                </button>
+                <button
+                  className="suggestion-hide-option"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    hideSuggestionForDuration(hideMenuId, 24 * 60 * 60 * 1000)
+                  }}
+                >
+                  1d
+                </button>
+                <button
+                  className="suggestion-hide-option"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    hideSuggestionForDuration(
+                      hideMenuId,
+                      7 * 24 * 60 * 60 * 1000,
+                    )
+                  }}
+                >
+                  1w
+                </button>
               </div>
-          </Portal>}
+              <div className="suggestion-hide-row suggestion-hide-day-row">
+                <input
+                  className="suggestion-hide-input"
+                  type="date"
+                  value={hideUntilDate}
+                  onChange={(event) => setHideUntilDate(event.target.value)}
+                />
+                <button
+                  className="suggestion-hide-apply"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    hideSuggestionUntilDate(hideMenuId)
+                  }}
+                >
+                  Hide until day
+                </button>
+              </div>
+              <div className="suggestion-hide-row suggestion-hide-task-row">
+                <HideUntilTaskPicker
+                  tree={tree}
+                  excludeId={hideMenuId}
+                  onApply={(taskId) =>
+                    hideSuggestionUntilTask(hideMenuId, taskId)
+                  }
+                />
+              </div>
+            </div>
+          </Portal>
+        )}
 
         {view === 'tree' && zoom.length > 0 && (
           <nav className="breadcrumbs">
@@ -1094,71 +1109,30 @@ export function TodoTreePage({ pathSegments }: { pathSegments: string[] }) {
             )}
 
             {showLoginConflictModal && (
-              <div
-                className="reconcile-modal-backdrop"
-                onClick={() => setIsConflictModalDismissed(true)}
-              >
-                <section
-                  className="reconcile-modal island-shell"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Resolve cloud sync conflict"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <div className="reconcile-modal-head">
-                    <div className="reconcile-kicker">Sync conflict</div>
-                    <h2 className="reconcile-title">
-                      Local and cloud snapshots diverged
-                    </h2>
-                    <p className="reconcile-copy">
-                      Choose which version to keep before sync resumes.
-                    </p>
-                  </div>
-
-                  <div className="reconcile-recommendation">
-                    Recommended: Keep Local
-                  </div>
-
-                  {conflictResolutionError && (
-                    <div className="reconcile-error" role="alert">
-                      {conflictResolutionError}
-                    </div>
-                  )}
-
-                  <div className="reconcile-actions">
-                    <button
-                      className="reconcile-btn reconcile-btn-primary"
-                      onClick={() => {
-                        void handleResolveConflict('keep-local')
-                      }}
-                      disabled={isResolvingConflict}
-                    >
-                      Keep Local
-                    </button>
-                    <button
-                      className="reconcile-btn"
-                      onClick={() => {
-                        void handleResolveConflict('keep-cloud')
-                      }}
-                      disabled={isResolvingConflict}
-                    >
-                      Keep Cloud
-                    </button>
-                    <button
-                      className="reconcile-btn reconcile-btn-ghost"
-                      onClick={() => setIsConflictModalDismissed(true)}
-                      disabled={isResolvingConflict}
-                    >
-                      Cancel / Review Later
-                    </button>
-                  </div>
-                </section>
-              </div>
+              <ConflictDiffModal
+                conflict={loginReconcileConflict!}
+                isResolving={isResolvingConflict}
+                error={conflictResolutionError}
+                onKeepLocal={() => {
+                  void handleResolveConflict('keep-local')
+                }}
+                onKeepCloud={() => {
+                  void handleResolveConflict('keep-cloud')
+                }}
+                onDismiss={() => setIsConflictModalDismissed(true)}
+              />
             )}
           </>
         )}
       </div>
-      <MainMenu open={menuOpen} onClose={() => setMenuOpen(false)} nodes={tree} history={activityHistory} syncStatus={syncStatus} onSync={triggerManualSync} />
+      <MainMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        nodes={tree}
+        history={activityHistory}
+        syncStatus={syncStatus}
+        onSync={triggerManualSync}
+      />
     </TodoCtx.Provider>
   )
 }
